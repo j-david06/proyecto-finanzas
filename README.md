@@ -4,6 +4,16 @@ Java 21, Spring Boot 3.5.16, PostgreSQL 16 y Flyway. Dominio sin Spring, JPA, Ja
 
 Flujo de ramas, commits y pull requests: [CONTRIBUTING.md](CONTRIBUTING.md).
 
+## Probar con pantallas
+
+```bash
+bash scripts/run-demo.sh
+```
+
+Abrir [http://127.0.0.1:8090/demo/](http://127.0.0.1:8090/demo/) y cargar `.env.demo-panel` con
+el botón **Cargar credenciales**. Usa la base separada `finanzas_demo` y permite enviar eventos,
+consultarlos y repetir un intento sin duplicarlo. [Guía del panel](docs/demo-panel.md).
+
 ## Ejecutar
 
 Requisitos: Git Bash, JDK 21, Maven 3.6.3+ y Docker con daemon activo.
@@ -68,6 +78,7 @@ java -jar target/proyecto-finanzas-0.0.1-SNAPSHOT.jar --spring.profiles.active=w
 - Permisos por cuenta, revocación, expiración y aislamiento por propietario/conexión.
 - Límite JSON real de 64 KiB, también con transferencia chunked; errores sin detalles internos.
 - [Contrato, aprovisionamiento y prueba desde Git Bash](docs/webhook.md).
+- Panel de demostración local con perfil `api,demo`; no habilitado en el perfil `api` ordinario.
 
 La persistencia de ingesta usa JDBC detrás de puertos; JPA queda disponible para otros adaptadores.
 Los eventos quedan en `RECEIVED`; parser Nu, jobs de procesamiento y registro manual/JWT todavía

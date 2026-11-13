@@ -75,3 +75,5 @@ jobs:
         env:
           FINANCE_TEST_DB_URL: jdbc:postgresql://127.0.0.1:${{ job.services.postgres.ports[5432] }}/finanzas_ci
         run: mvn --batch-mode --no-transfer-progress verify
+      - name: Validate demo amounts and replay identity
+        run: node --test src/test/js/demo-model.test.mjs
