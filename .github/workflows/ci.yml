@@ -1,0 +1,77 @@
+name: CI
+
+on:
+  push:
+    branches: [main, 'feat/**', 'fix/**', 'chore/**', 'docs/**', 'test/**', 'refactor/**']
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened, edited, ready_for_review]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  conventions:
+    name: conventions
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Validate pull request conventions
+        if: github.event_name == 'pull_request'
+        shell: bash
+        env:
+          HEAD_BRANCH: ${{ github.head_ref }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          set -euo pipefail
+          if [[ ! "$HEAD_BRANCH" =~ ^(feat|fix|chore|docs|test|refactor)/[a-z0-9]+(-[a-z0-9]+)*$ ]]; then
+            echo '::error::Use feat/descripcion, fix/descripcion, chore/descripcion, docs/descripcion, test/descripcion o refactor/descripcion.'
+            exit 1
+          fi
+          if [[ ! "$PR_TITLE" =~ ^(feat|fix|chore|docs|test|refactor|perf|build|ci|revert)(\([a-z0-9._/-]+\))?!?:\ .+ ]]; then
+            echo '::error::El titulo del PR debe usar Conventional Commits; ejemplo: feat: agregar ingesta.'
+            exit 1
+          fi
+
+  verify:
+    name: verify
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: finanzas_ci
+          POSTGRES_USER: finanzas_ci
+          # Credential for an ephemeral CI service; not a deployment secret.
+          POSTGRES_PASSWORD: ci-ephemeral-only
+        ports:
+          - 5432/tcp
+        options: >-
+          --health-cmd "pg_isready -U finanzas_ci -d finanzas_ci"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+    env:
+      FINANCE_TEST_DB_USER: finanzas_ci
+      FINANCE_TEST_DB_PASSWORD: ci-ephemeral-only
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Java 21
+        uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+      - name: Compile, test and package
+        env:
+          FINANCE_TEST_DB_URL: jdbc:postgresql://127.0.0.1:${{ job.services.postgres.ports[5432] }}/finanzas_ci
+        run: mvn --batch-mode --no-transfer-progress verify

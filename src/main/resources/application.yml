@@ -1,0 +1,70 @@
+spring:
+  application:
+    name: proyecto-finanzas
+  profiles:
+    default: api
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:${DB_PORT:55432}/${DB_NAME:finanzas}}
+    username: ${DB_USER:finanzas}
+    password: ${DB_PASSWORD}
+    hikari:
+      maximum-pool-size: ${DB_POOL_SIZE:10}
+      minimum-idle: 1
+      connection-timeout: 10000
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    validate-on-migrate: true
+    clean-disabled: true
+  jackson:
+    deserialization:
+      fail-on-unknown-properties: true
+  lifecycle:
+    timeout-per-shutdown-phase: 30s
+
+server:
+  address: ${SERVER_ADDRESS:127.0.0.1}
+  port: ${SERVER_PORT:8080}
+  shutdown: graceful
+  forward-headers-strategy: none
+  error:
+    include-message: never
+    include-binding-errors: never
+    include-stacktrace: never
+  tomcat:
+    max-http-form-post-size: 64KB
+
+finance:
+  ingestion:
+    authentication-profile: API_KEY_ONLY
+    max-payload-bytes: 65536
+  business-zone: America/Bogota
+
+---
+spring:
+  config:
+    activate:
+      on-profile: api
+  main:
+    web-application-type: servlet
+
+---
+spring:
+  config:
+    activate:
+      on-profile: worker
+  main:
+    web-application-type: none
+    keep-alive: true
+  task:
+    scheduling:
+      pool:
+        size: 2
