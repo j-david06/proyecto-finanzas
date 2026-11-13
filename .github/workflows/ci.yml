@@ -58,7 +58,6 @@ jobs:
           --health-timeout 3s
           --health-retries 10
     env:
-      FINANCE_TEST_DB_URL: jdbc:postgresql://127.0.0.1:${{ job.services.postgres.ports[5432] }}/finanzas_ci
       FINANCE_TEST_DB_USER: finanzas_ci
       FINANCE_TEST_DB_PASSWORD: ci-ephemeral-only
     steps:
@@ -73,4 +72,6 @@ jobs:
           java-version: '21'
           cache: maven
       - name: Compile, test and package
+        env:
+          FINANCE_TEST_DB_URL: jdbc:postgresql://127.0.0.1:${{ job.services.postgres.ports[5432] }}/finanzas_ci
         run: mvn --batch-mode --no-transfer-progress verify
