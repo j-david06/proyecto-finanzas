@@ -48,6 +48,8 @@ de reconstruir el JAR en Windows. No combinar `api,worker`; usar procesos separa
 - Una clave no disponible aplica `RETRY`, luego `DEAD` si no se restaura a tiempo. Solo se carga
   una clave; rotación con llavero y recuperación manual de `REVIEW/DEAD` aún pendientes.
 - No calcula saldos ni categoriza. V1 permanece intacta; V2 añade metadatos Nu y mapeos de cuentas.
+- El [worker de Gmail](email-worker.md) encola pagos como fuente IMAP y registra extractos
+  en facturación sin crear movimientos. V3 añade cursor, auditoría y estados de facturación.
 
 ## Configuración
 

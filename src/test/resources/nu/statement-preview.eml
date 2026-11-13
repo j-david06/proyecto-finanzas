@@ -1,0 +1,23 @@
+From: Nu Fixture <nu@example.test>
+To: user@example.test
+Subject: =?UTF-8?Q?Lleg=C3=B3_el_extracto_de_tu_tarjeta_de_cr=C3=A9dito_Nu?=
+Authentication-Results: mx.google.com; dmarc=pass header.from=example.test
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Así viviste un NUevo mes con tu Tarjeta Nu
+Hola, Usuario:
+Lupa a lo más importante:
+Pago mínimo
+El monto más pequeño a pagar para estar al día con tu tarjeta.
+$190.000,00
+Periodo facturado
+El tiempo donde agrupamos las transacciones que hiciste con tu tarjeta Nu.
+14 septiembre - 15 octubre
+Fecha de corte
+El día que cierra tu factura con las compras de los últimos 30 días.
+15 octubre
+Fecha límite de pago
+El día a pagar tus cuotas sin entrar en mora.
+4 noviembre

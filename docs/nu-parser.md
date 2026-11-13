@@ -8,9 +8,9 @@ compartido; Apple Pay puede continuar enviando NORMALIZED. El registro manual si
 
 - APP_DETAIL + RAW_MESSAGE: detalle de la app Nu (Bre-B recibido/enviado, compra y cancelación).
 - EMAIL + RAW_MESSAGE: exclusivamente la muestra de pago de tarjeta, como TRANSFER.
-- Los correos de corte/extracto no son compras. Sin una plantilla específica quedan en REVIEW;
-  el próximo corte que aparece en el recibo de pago se conserva como metadato next_cut_on.
-- La conexión automática IMAP/Gmail sigue pendiente. Nu no envía un correo por cada movimiento
+- Los correos de corte/extracto no son compras. El [worker de Gmail](email-worker.md) registra
+  la plantilla de extracto como facturación; otros formatos quedan en REVIEW.
+- La conexión Gmail por IMAP está disponible y desactivada hasta configurarla. Nu no envía un correo por cada movimiento
   diario, según el comportamiento indicado por el usuario. No hay lectura de pushes de terceros.
 
 ## Reglas
@@ -93,7 +93,7 @@ una compra POSTED anterior; ese enlace y la conciliación manual quedan pendient
 un reembolso explícito crea su propio ingreso, sin sobrescribir el gasto original.
 
 La marca Nu en el texto no prueba autenticidad bancaria. La API Key autentica al cliente.
-El futuro adaptador de correo deberá validar origen y cuenta conectada por separado.
+El adaptador Gmail valida origen y cuenta conectada por separado; ver [configuración](email-worker.md).
 No hay saldos, categorías automáticas, OCR en el backend ni ejecución de pagos bancarios.
 
 ## Validación

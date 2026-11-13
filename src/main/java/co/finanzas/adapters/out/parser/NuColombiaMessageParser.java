@@ -88,6 +88,12 @@ public final class NuColombiaMessageParser {
     }
 
     private ParsedMovement payment(IngestionRequest request,String[] l) {
+        if(l.length>=1 && l[0].equals("Asunto: ¡Ya entró tu pago!")) {
+            var normalized=new java.util.ArrayList<>(java.util.List.of(l));
+            normalized.set(0,"Asunto: ¡Recibimos tu pago! Ya puedes estar relax.");
+            if(normalized.size()>1 && normalized.get(1).equals("¡Recibimos tu pago! Ya puedes estar relax."))normalized.remove(1);
+            l=normalized.toArray(String[]::new);
+        }
         if(l.length!=12 || !l[0].equals("Asunto: ¡Recibimos tu pago! Ya puedes estar relax.")) unavailable();
         field(l[1],"Hola, ","[^\\p{Cntrl}]{1,120}:");
         exact(l[2],"Recibimos el pago que hiciste de tu Tarjeta de crédito Nu.");

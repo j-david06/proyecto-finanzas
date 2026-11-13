@@ -33,7 +33,7 @@ public final class PostgresProcessingRepository implements ProcessingRepository 
         return transactions.execute(ignored -> {
             jdbc.update("""
                     WITH exhausted AS (
-                        SELECT id FROM ingestion_logs WHERE source='IOS_SHORTCUTS' AND attempts>=?
+                        SELECT id FROM ingestion_logs WHERE source IN ('IOS_SHORTCUTS','IMAP') AND attempts>=?
                           AND ((state IN ('RECEIVED','RETRY') AND available_at<=now())
                             OR (state='PROCESSING' AND lease_until<=now()))
                         ORDER BY received_at,id LIMIT 100 FOR UPDATE SKIP LOCKED
@@ -43,7 +43,7 @@ public final class PostgresProcessingRepository implements ProcessingRepository 
                     """, maxAttempts);
             return jdbc.query("""
                     WITH candidate AS (
-                        SELECT id FROM ingestion_logs WHERE source='IOS_SHORTCUTS' AND attempts<?
+                        SELECT id FROM ingestion_logs WHERE source IN ('IOS_SHORTCUTS','IMAP') AND attempts<?
                           AND ((state IN ('RECEIVED','RETRY') AND available_at<=now())
                             OR (state='PROCESSING' AND lease_until<=now()))
                         ORDER BY available_at,received_at,id LIMIT 1 FOR UPDATE SKIP LOCKED
@@ -53,7 +53,7 @@ public final class PostgresProcessingRepository implements ProcessingRepository 
                     """, (rs, row) -> new IngestionWork(rs.getObject("id", UUID.class),
                     new OwnerId(rs.getObject("owner_id", UUID.class)), rs.getObject("source_connection_id", UUID.class),
                     rs.getString("idempotency_key"), new EncryptedPayload(rs.getBytes("payload_encrypted"), rs.getString("payload_key_id")),
-                    rs.getBytes("payload_sha256"), rs.getObject("lease_token", UUID.class), rs.getInt("attempts")),
+                    rs.getBytes("payload_sha256"), rs.getObject("lease_token", UUID.class), rs.getInt("attempts"),rs.getString("source")),
                     maxAttempts, UUID.randomUUID(), leaseSeconds).stream().findFirst();
         });
     }
@@ -75,8 +75,8 @@ public final class PostgresProcessingRepository implements ProcessingRepository 
                     .stream().findFirst().orElseThrow(() -> new ProcessingFailure(ACCOUNT_NOT_AUTHORIZED, false));
             Boolean unexpired = jdbc.queryForObject("SELECT expires_at IS NULL OR expires_at>clock_timestamp() FROM source_connections WHERE id=?",
                     Boolean.class, work.connectionId());
-            if (!connection.active() || !connection.source().equals("IOS_SHORTCUTS")
-                    || !connection.authenticationProfile().equals("API_KEY_ONLY") || !Boolean.TRUE.equals(unexpired)
+            if (!connection.active() || !connection.source().equals(work.source())
+                    || (!work.source().equals("IMAP") && !connection.authenticationProfile().equals("API_KEY_ONLY")) || !Boolean.TRUE.equals(unexpired)
                     || !connection.allowedAccounts().contains(transaction.account().id())
                     || (transaction.counterpartyAccount()!=null && !connection.allowedAccounts().contains(transaction.counterpartyAccount().id()))) {
                 throw new ProcessingFailure(ACCOUNT_NOT_AUTHORIZED, false);

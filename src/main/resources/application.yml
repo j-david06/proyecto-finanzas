@@ -50,6 +50,18 @@ finance:
     payload-key-base64: ${INGESTION_PAYLOAD_KEY_BASE64:}
     payload-key-id: ${INGESTION_PAYLOAD_KEY_ID:v1}
   business-zone: America/Bogota
+  email:
+    enabled: ${NU_EMAIL_ENABLED:false}
+    username: ${NU_GMAIL_USERNAME:}
+    app-password: ${NU_GMAIL_APP_PASSWORD:}
+    access-token: ${NU_GMAIL_ACCESS_TOKEN:}
+    sender: ${NU_EMAIL_FROM:}
+    folder: ${NU_EMAIL_FOLDER:INBOX}
+    connection-id: ${NU_EMAIL_CONNECTION_ID:}
+    account-id: ${NU_EMAIL_ACCOUNT_ID:}
+    destination-account-id: ${NU_EMAIL_DESTINATION_ACCOUNT_ID:}
+    backfill: ${NU_EMAIL_BACKFILL:false}
+    poll-delay-ms: ${NU_EMAIL_POLL_DELAY_MS:60000}
   processing:
     scheduling-enabled: ${PROCESSING_SCHEDULING_ENABLED:true}
     poll-delay-ms: ${PROCESSING_POLL_DELAY_MS:2000}
