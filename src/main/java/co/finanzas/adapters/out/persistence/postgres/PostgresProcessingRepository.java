@@ -77,34 +77,61 @@ public final class PostgresProcessingRepository implements ProcessingRepository 
                     Boolean.class, work.connectionId());
             if (!connection.active() || !connection.source().equals("IOS_SHORTCUTS")
                     || !connection.authenticationProfile().equals("API_KEY_ONLY") || !Boolean.TRUE.equals(unexpired)
-                    || !connection.allowedAccounts().contains(transaction.account().id())) {
+                    || !connection.allowedAccounts().contains(transaction.account().id())
+                    || (transaction.counterpartyAccount()!=null && !connection.allowedAccounts().contains(transaction.counterpartyAccount().id()))) {
                 throw new ProcessingFailure(ACCOUNT_NOT_AUTHORIZED, false);
             }
-            var current = jdbc.query("SELECT * FROM accounts WHERE id=? AND owner_id=? FOR SHARE",
-                    (rs, row) -> mapAccount(rs), transaction.account().id(), work.owner().value()).stream().findFirst()
+            UUID destinationId = transaction.counterpartyAccount()==null ? null : transaction.counterpartyAccount().id();
+            var locked = jdbc.query("SELECT * FROM accounts WHERE owner_id=? AND id IN (?,?) ORDER BY id FOR SHARE",
+                    (rs,row)->mapAccount(rs),work.owner().value(),transaction.account().id(),destinationId);
+            var current = locked.stream().filter(a->a.id().equals(transaction.account().id())).findFirst()
                     .orElseThrow(() -> new ProcessingFailure(ACCOUNT_NOT_AUTHORIZED, false));
             if (!current.active() || !current.currency().equals(transaction.amount().currency())) {
                 throw new ProcessingFailure(ACCOUNT_NOT_AUTHORIZED, false);
             }
-            transaction.requireRegistrable();
+            if(destinationId!=null) {
+                var destination=locked.stream().filter(a->a.id().equals(destinationId)).findFirst()
+                        .orElseThrow(()->new ProcessingFailure(ACCOUNT_NOT_AUTHORIZED,false));
+                if(!destination.active() || !destination.currency().equals(transaction.amount().currency()))
+                    throw new ProcessingFailure(ACCOUNT_NOT_AUTHORIZED,false);
+                if(current.kind()!=Account.Kind.DEPOSIT || destination.kind()!=Account.Kind.CREDIT_CARD
+                        || current.bankReference()==null || !current.bankReference().equals(transaction.metadata().originProduct())
+                        || destination.cardLast4()==null || !destination.cardLast4().equals(transaction.metadata().cardLast4()))
+                    throw new ProcessingFailure(ACCOUNT_MAPPING_REQUIRED,false);
+            }
+            transaction.requireIngestible();
+            var metadata=transaction.metadata();
             jdbc.update("""
                     INSERT INTO transactions(id,owner_id,account_id,kind,status,amount,currency,occurred_at,
-                        merchant,bank_provider,bank_event_id) VALUES (?,?,?,?,'POSTED',?,?,?,?,?,?)
+                        merchant,bank_provider,bank_event_id,counterparty_account_id,original_amount,original_currency,
+                        tax_4x1000,card_last4,installments,origin_product,next_cut_on)
+                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
                     ON CONFLICT DO NOTHING
-                    """, transaction.id(), work.owner().value(), current.id(), transaction.kind().name(),
+                    """, transaction.id(), work.owner().value(), current.id(), transaction.kind().name(),transaction.status().name(),
                     transaction.amount().amount(), transaction.amount().currency().getCurrencyCode(),
-                    Timestamp.from(transaction.occurredAt()), transaction.merchant(), transaction.bankProvider(), transaction.bankEventId());
+                    Timestamp.from(transaction.occurredAt()), transaction.merchant(), transaction.bankProvider(), transaction.bankEventId(),
+                    destinationId,metadata.originalAmount()==null?null:metadata.originalAmount().amount(),
+                    metadata.originalAmount()==null?null:metadata.originalAmount().currency().getCurrencyCode(),
+                    metadata.tax4x1000(),metadata.cardLast4(),metadata.installments(),metadata.originProduct(),metadata.nextCutOn());
             var matches = jdbc.query("""
                     SELECT * FROM transactions WHERE owner_id=? AND account_id=?
                       AND (id=? OR (bank_provider=? AND bank_event_id=?)) FOR SHARE
                     """, (rs, row) -> {
-                boolean same = rs.getString("kind").equals(transaction.kind().name()) && rs.getString("status").equals("POSTED")
+                boolean same = rs.getString("kind").equals(transaction.kind().name()) && rs.getString("status").equals(transaction.status().name())
                         && rs.getBigDecimal("amount").compareTo(transaction.amount().amount()) == 0
                         && rs.getString("currency").equals(transaction.amount().currency().getCurrencyCode())
                         && rs.getTimestamp("occurred_at").toInstant().equals(transaction.occurredAt())
                         && Objects.equals(rs.getString("merchant"), transaction.merchant())
                         && Objects.equals(rs.getString("bank_provider"), transaction.bankProvider())
-                        && Objects.equals(rs.getString("bank_event_id"), transaction.bankEventId());
+                        && Objects.equals(rs.getString("bank_event_id"), transaction.bankEventId())
+                        && Objects.equals(rs.getObject("counterparty_account_id",UUID.class),destinationId)
+                        && sameDecimal(rs.getBigDecimal("original_amount"),metadata.originalAmount()==null?null:metadata.originalAmount().amount())
+                        && Objects.equals(rs.getString("original_currency"),metadata.originalAmount()==null?null:metadata.originalAmount().currency().getCurrencyCode())
+                        && sameDecimal(rs.getBigDecimal("tax_4x1000"),metadata.tax4x1000())
+                        && Objects.equals(rs.getString("card_last4"),metadata.cardLast4())
+                        && Objects.equals(rs.getObject("installments",Integer.class),metadata.installments())
+                        && Objects.equals(rs.getString("origin_product"),metadata.originProduct())
+                        && Objects.equals(rs.getObject("next_cut_on",java.time.LocalDate.class),metadata.nextCutOn());
                 if (!same) throw new ProcessingFailure(BANK_EVENT_CONFLICT, false);
                 return rs.getObject("id", UUID.class);
             }, work.owner().value(), current.id(), transaction.id(), transaction.bankProvider(), transaction.bankEventId());
@@ -139,6 +166,10 @@ public final class PostgresProcessingRepository implements ProcessingRepository 
 
     private static Account mapAccount(ResultSet rs) throws SQLException {
         return new Account(rs.getObject("id", UUID.class), new OwnerId(rs.getObject("owner_id", UUID.class)),
-                rs.getString("name"), Account.Kind.valueOf(rs.getString("kind")), Currency.getInstance(rs.getString("currency")), rs.getBoolean("active"));
+                rs.getString("name"), Account.Kind.valueOf(rs.getString("kind")), Currency.getInstance(rs.getString("currency")), rs.getBoolean("active"),
+                rs.getString("bank_reference"),rs.getString("card_last4"));
+    }
+    private static boolean sameDecimal(java.math.BigDecimal a,java.math.BigDecimal b) {
+        return a==null ? b==null : b!=null && a.compareTo(b)==0;
     }
 }

@@ -170,4 +170,57 @@ class IngestionProcessingTest {
         jdbc.update("UPDATE ingestion_logs SET available_at=now()-interval '1 second' WHERE id=?",id);
         processor.processNext(); assertEquals(1,count()); assertEquals("PROCESSED",state(id));
     }
+
+    private UUID raw(String sample,UUID destination) {
+        return accept(co.finanzas.ingestion.NuMessageParserTest.body(account,destination,
+                sample.equals("card-payment")?"EMAIL":"APP_DETAIL",co.finanzas.ingestion.NuMessageParserTest.sample(sample)));
+    }
+    private UUID mapCard(boolean allowed) {
+        UUID card=UUID.randomUUID();
+        jdbc.update("UPDATE accounts SET bank_reference='ABC123' WHERE id=?",account);
+        jdbc.update("INSERT INTO accounts(id,owner_id,name,kind,card_last4) VALUES (?,?,'Tarjeta Nu','CREDIT_CARD','9876')",card,owner);
+        if(allowed) jdbc.update("UPDATE source_connections SET allowed_account_ids=ARRAY[?,?]::uuid[] WHERE id=?",account,card,connection);
+        return card;
+    }
+    @Test void appDetailsPersistMoneyTaxAndCardMetadata() {
+        UUID incoming=raw("breb-in",null),outgoing=raw("breb-out",null),purchase=raw("purchase",null);
+        while(processor.processNext()) {}
+        assertEquals(3,count()); assertEquals("PROCESSED",state(incoming)); assertEquals("PROCESSED",state(outgoing));
+        assertEquals("1234",jdbc.queryForObject("SELECT card_last4 FROM transactions WHERE id=?",String.class,purchase));
+        assertEquals(1,jdbc.queryForObject("SELECT installments FROM transactions WHERE id=?",Integer.class,purchase));
+        assertEquals(new java.math.BigDecimal("0.00"),jdbc.queryForObject("SELECT tax_4x1000 FROM transactions WHERE id=?",java.math.BigDecimal.class,outgoing));
+    }
+    @Test void cancelledObservationIsVoidedAndNeverASettledExpense() {
+        UUID id=raw("cancelled",null); processor.processNext();
+        assertEquals("PROCESSED",state(id));assertEquals("VOIDED",jdbc.queryForObject("SELECT status FROM transactions WHERE id=?",String.class,id));
+        assertEquals("USD",jdbc.queryForObject("SELECT original_currency FROM transactions WHERE id=?",String.class,id));
+        assertEquals(new java.math.BigDecimal("1.10"),jdbc.queryForObject("SELECT original_amount FROM transactions WHERE id=?",java.math.BigDecimal.class,id));
+        assertEquals(0,jdbc.queryForObject("SELECT count(*) FROM transactions WHERE status='POSTED'",Integer.class));
+        var receipt=context.getBean(ReceiveIngestionUseCase.class).status(context.getBean(AuthenticateApiKeyUseCase.class).authenticate(key),id);
+        assertEquals("VOIDED",receipt.transactionStatus());
+    }
+    @Test void paymentCreatesOneMappedTransferAndDeduplicatesSeparateIngestions() {
+        UUID card=mapCard(true),first=raw("card-payment",card); processor.processNext();
+        UUID second=raw("card-payment",card);processor.processNext();
+        assertEquals(1,count());assertEquals("PROCESSED",state(second));
+        assertEquals("TRANSFER",jdbc.queryForObject("SELECT kind FROM transactions",String.class));
+        assertEquals(card,jdbc.queryForObject("SELECT counterparty_account_id FROM transactions",UUID.class));
+        assertEquals(first,jdbc.queryForObject("SELECT transaction_id FROM ingestion_logs WHERE id=?",UUID.class,second));
+        assertEquals(java.time.LocalDate.of(2026,11,14),jdbc.queryForObject("SELECT next_cut_on FROM transactions",java.time.LocalDate.class));
+    }
+    @Test void paymentCannotUseMissingMappingOrUnapprovedDestination() {
+        UUID card=mapCard(false),unapproved=raw("card-payment",card);processor.processNext();
+        assertEquals("REVIEW",state(unapproved));assertEquals(0,count());
+        jdbc.update("UPDATE source_connections SET allowed_account_ids=ARRAY[?,?]::uuid[] WHERE id=?",account,card,connection);
+        jdbc.update("UPDATE accounts SET card_last4='1111' WHERE id=?",card);
+        UUID mismatch=raw("card-payment",card);processor.processNext();
+        assertEquals("REVIEW",state(mismatch));assertEquals(0,count());
+        assertEquals("ACCOUNT_MAPPING_REQUIRED",jdbc.queryForObject("SELECT error_code FROM ingestion_logs WHERE id=?",String.class,mismatch));
+    }
+    @Test void paymentMetadataConflictsAreNotSilentlyDeduplicated() {
+        UUID card=mapCard(true);raw("card-payment",card);processor.processNext();
+        String changed=co.finanzas.ingestion.NuMessageParserTest.sample("card-payment").replace("14 noviembre 2026","15 noviembre 2026");
+        UUID conflict=accept(co.finanzas.ingestion.NuMessageParserTest.body(account,card,"EMAIL",changed));processor.processNext();
+        assertEquals("REVIEW",state(conflict));assertEquals(1,count());
+    }
 }

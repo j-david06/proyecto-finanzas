@@ -19,11 +19,13 @@ export function formatAmount(decimal) {
   return `$ ${integer.replace(/\B(?=(\d{3})+(?!\d))/g, '.')},${fraction}`;
 }
 
-export function validateConnection(apiKey, accountId) {
+export function validateConnection(apiKey, accountId, destinationAccountId = '') {
   if (!KEY_PATTERN.test(apiKey) || !UUID_PATTERN.test(accountId)) {
     throw new Error('Revisa la API Key y el UUID de la cuenta en .env.shortcuts.');
   }
-  return Object.freeze({apiKey, accountId});
+  if(destinationAccountId && (!UUID_PATTERN.test(destinationAccountId) || destinationAccountId===accountId))
+    throw new Error('Revisa la cuenta destino de tarjeta.');
+  return Object.freeze({apiKey, accountId, destinationAccountId});
 }
 
 export function parseCredentials(text) {
@@ -33,11 +35,11 @@ export function parseCredentials(text) {
     const separator = line.indexOf('=');
     if (separator < 0) continue;
     const name = line.slice(0, separator);
-    if (!['INGESTION_API_KEY','INGESTION_ACCOUNT_ID'].includes(name)) continue;
+    if (!['INGESTION_API_KEY','INGESTION_ACCOUNT_ID','INGESTION_DESTINATION_ACCOUNT_ID'].includes(name)) continue;
     if (values.has(name)) throw new Error('El archivo tiene campos de conexión repetidos.');
     values.set(name, line.slice(separator + 1).trim());
   }
-  return validateConnection(values.get('INGESTION_API_KEY') || '', values.get('INGESTION_ACCOUNT_ID') || '');
+  return validateConnection(values.get('INGESTION_API_KEY') || '', values.get('INGESTION_ACCOUNT_ID') || '',values.get('INGESTION_DESTINATION_ACCOUNT_ID') || '');
 }
 
 export function createAttempt(fields, accountId, eventId) {
@@ -58,7 +60,25 @@ export function createAttempt(fields, accountId, eventId) {
 export function validReceipt(receipt) {
   return Boolean(receipt && UUID_PATTERN.test(receipt.ingestion_id) && Object.hasOwn(STATES, receipt.status)
     && (receipt.transaction_id == null || UUID_PATTERN.test(receipt.transaction_id))
-    && (receipt.status !== 'PROCESSED' || UUID_PATTERN.test(receipt.transaction_id)));
+    && (receipt.status !== 'PROCESSED' || UUID_PATTERN.test(receipt.transaction_id))
+    && (receipt.transaction_status == null || ['POSTED','PENDING','VOIDED'].includes(receipt.transaction_status)));
+}
+
+export function createRawAttempt(fields,accountId,eventId) {
+  if (!UUID_PATTERN.test(accountId) || !UUID_PATTERN.test(eventId)) throw new Error('Identificador inválido.');
+  if (!['APP_DETAIL','EMAIL'].includes(fields.trigger)) throw new Error('Selecciona un origen válido.');
+  if(!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(fields.date) || !Number.isFinite(Date.parse(`${fields.date}:00-05:00`)))
+    throw new Error('Fecha de recepción inválida.');
+  const text=fields.text.trim();
+  if (!text || text.length>8192) throw new Error('Pega un mensaje completo de hasta 8192 caracteres.');
+  const destination=fields.destination.trim();
+  if (destination && (!UUID_PATTERN.test(destination) || destination===accountId || fields.trigger!=='EMAIL'))
+    throw new Error('Revisa el UUID de la cuenta destino de tarjeta.');
+  const payload={schema_version:1,trigger:fields.trigger,format:'RAW_MESSAGE',account_id:accountId,
+    message:{text,received_at:`${fields.date}:00-05:00`}};
+  if (destination) payload.destination_account_id=destination;
+  return Object.freeze({eventId,body:JSON.stringify(payload),accountId,amount:null,kind:null,date:fields.date,
+    merchant:fields.trigger==='EMAIL'?'Pago Tarjeta Nu':'Detalle Nu'});
 }
 export function stateLabel(state) { return STATES[state] || 'Sin confirmar'; }
 export function pendingState(state) { return ['RECEIVED','PROCESSING','RETRY'].includes(state); }

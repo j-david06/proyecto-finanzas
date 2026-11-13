@@ -7,10 +7,11 @@ import java.util.UUID;
 
 public record IngestionRequest(
         @JsonProperty("schema_version") @NotNull @Min(1) @Max(1) Integer schemaVersion,
-        @NotNull @Pattern(regexp = "APPLE_PAY|SMS|EMAIL") String trigger,
+        @NotNull @Pattern(regexp = "APPLE_PAY|SMS|EMAIL|APP_DETAIL") String trigger,
         @NotNull @Pattern(regexp = "NORMALIZED|RAW_MESSAGE") String format,
         @JsonProperty("account_id") @NotNull UUID accountId,
-        @Valid Movement movement, @Valid Message message) {
+        @Valid Movement movement, @Valid Message message,
+        @JsonProperty("destination_account_id") UUID destinationAccountId) {
 
     public record Movement(
             @NotNull @Pattern(regexp = "INCOME|EXPENSE") String kind,

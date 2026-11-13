@@ -11,3 +11,5 @@
 .file-button{background:white}
 @media(max-width:780px){input,select,.connection-grid input,.form-grid input,.form-grid select{font-size:16px}.amount-field input{font-size:36px}}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{transition:none!important;scroll-behavior:auto!important}}
+
+#raw-fields label,#normalized-fields{margin-top:16px}textarea{width:100%;box-sizing:border-box;border:1px solid var(--line);border-radius:9px;padding:12px;font:inherit;font-size:16px;resize:vertical}#raw-fields .field-help{line-height:1.6}

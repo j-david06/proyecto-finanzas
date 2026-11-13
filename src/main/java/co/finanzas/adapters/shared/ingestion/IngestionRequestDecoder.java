@@ -31,6 +31,7 @@ public final class IngestionRequestDecoder {
             if (tree == null || !tree.isObject()) throw new PayloadDecodingException(400, "INVALID_JSON");
             if (!tree.path("schema_version").isIntegralNumber()) invalid();
             requireText(tree, "trigger", "format", "account_id");
+            requireOptionalText(tree, "destination_account_id");
             if (tree.path("movement").isObject()) {
                 requireText(tree.path("movement"), "kind", "amount", "occurred_at");
                 requireOptionalText(tree.path("movement"), "currency", "merchant", "bank_provider", "bank_event_id");
@@ -39,7 +40,7 @@ public final class IngestionRequestDecoder {
             IngestionRequest request = mapper.treeToValue(tree, IngestionRequest.class);
             if (!validator.validate(request).isEmpty()) invalid();
             if (request.format().equals("NORMALIZED")) {
-                if (request.movement() == null || request.message() != null) invalid();
+                if (request.movement() == null || request.message() != null || request.destinationAccountId() != null) invalid();
                 var movement = request.movement();
                 OffsetDateTime.parse(movement.occurredAt());
                 if (movement.bankEventId() != null && (movement.bankProvider() == null || movement.bankProvider().isBlank())) invalid();

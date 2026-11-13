@@ -15,9 +15,10 @@ import java.util.UUID;
 public class IngestionController {
     public record ReceiptBody(@com.fasterxml.jackson.annotation.JsonProperty("ingestion_id") UUID ingestionId, String status,
             @com.fasterxml.jackson.annotation.JsonProperty("transaction_id") UUID transactionId,
-            @com.fasterxml.jackson.annotation.JsonProperty("error_code") String errorCode, int attempts) {
+            @com.fasterxml.jackson.annotation.JsonProperty("error_code") String errorCode, int attempts,
+            @com.fasterxml.jackson.annotation.JsonProperty("transaction_status") String transactionStatus) {
         static ReceiptBody from(co.finanzas.application.ingestion.model.IngestionReceipt receipt) {
-            return new ReceiptBody(receipt.ingestionId(), receipt.status(), receipt.transactionId(), receipt.errorCode(), receipt.attempts());
+            return new ReceiptBody(receipt.ingestionId(), receipt.status(), receipt.transactionId(), receipt.errorCode(), receipt.attempts(),receipt.transactionStatus());
         }
     }
     private final ReceiveIngestionUseCase ingestion;

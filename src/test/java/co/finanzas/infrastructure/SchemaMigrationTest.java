@@ -40,7 +40,7 @@ class SchemaMigrationTest {
                         System.getenv().getOrDefault("FINANCE_TEST_DB_USER", "finance_test"),
                         System.getenv().getOrDefault("FINANCE_TEST_DB_PASSWORD", ""))
                 .schemas(SCHEMA).defaultSchema(SCHEMA).load();
-        assertEquals(1, flyway.migrate().migrationsExecuted);
+        assertEquals(2, flyway.migrate().migrationsExecuted);
         assertEquals(0, flyway.migrate().migrationsExecuted);
         assertTrue(flyway.validateWithResult().validationSuccessful);
     }

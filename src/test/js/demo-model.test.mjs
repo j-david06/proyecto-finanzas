@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {createAttempt,formatAmount,normalizeAmount,parseCredentials,validReceipt,stateLabel} from '../../main/resources/static/demo/model.mjs';
+import {createAttempt,createRawAttempt,formatAmount,normalizeAmount,parseCredentials,validReceipt,stateLabel} from '../../main/resources/static/demo/model.mjs';
 
 const account = 'b61522e7-521a-4565-a857-62fa7c1c0c80';
 const eventId = '803c6151-751e-4ec1-9428-d4ae3adf7257';
@@ -12,6 +12,23 @@ test('preserves exact cents and the numeric(18,2) maximum as strings',()=>{
   assert.equal(normalizeAmount('9999999999999999.99'),'9999999999999999.99');
   assert.equal(formatAmount('9999999999999999.99'),'$ 9.999.999.999.999.999,99');
   assert.throws(()=>normalizeAmount(1));
+});
+
+test('raw OCR attempts preserve message bytes for retries without inventing financial fields',()=>{
+  const fields={trigger:'APP_DETAIL',text:'Rappi\n$27.900,00\n16:28, Domingo, 8 de Noviembre de 2026',date:'2026-11-13T14:30',destination:''};
+  const attempt=createRawAttempt(fields,account,eventId);
+  fields.text='changed';
+  const payload=JSON.parse(attempt.body);
+  assert.equal(payload.trigger,'APP_DETAIL');assert.equal(payload.format,'RAW_MESSAGE');assert.equal(payload.movement,undefined);
+  assert.ok(payload.message.text.includes('$27.900,00'));assert.equal(attempt.amount,null);assert.ok(Object.isFrozen(attempt));
+});
+test('payment attempts carry only an explicit destination and reject invalid identifiers',()=>{
+  const fields={trigger:'EMAIL',text:'correo completo',date:'2026-11-13T14:30',destination:eventId};
+  assert.equal(JSON.parse(createRawAttempt(fields,account,eventId).body).destination_account_id,eventId);
+  assert.throws(()=>createRawAttempt({...fields,destination:account},account,eventId));
+  assert.throws(()=>createRawAttempt({...fields,trigger:'APP_DETAIL'},account,eventId));
+  assert.throws(()=>createRawAttempt({...fields,date:'invalid'},account,eventId));
+  assert.throws(()=>createRawAttempt({...fields,text:' '},account,eventId));
 });
 
 for (const amount of ['0','0,00','-1','1e3','45.900,00','01','0.001','1,234','Infinity','NaN','10000000000000000']) {
