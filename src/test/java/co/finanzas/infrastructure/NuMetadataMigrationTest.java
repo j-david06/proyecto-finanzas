@@ -17,7 +17,7 @@ class NuMetadataMigrationTest {
             assertEquals(1,config.target("1").load().migrate().migrationsExecuted);
             s.execute("SET search_path TO "+schema);
             s.execute("INSERT INTO accounts(id,owner_id,name,kind) VALUES ('"+UUID.randomUUID()+"','"+UUID.randomUUID()+"','Existing','DEPOSIT')");
-            assertEquals(1,config.target("latest").load().migrate().migrationsExecuted);
+            assertEquals(2,config.target("latest").load().migrate().migrationsExecuted);
             try(var rs=s.executeQuery("SELECT name,bank_reference,card_last4 FROM accounts")) {
                 assertTrue(rs.next());assertEquals("Existing",rs.getString(1));assertNull(rs.getString(2));assertNull(rs.getString(3));
             }

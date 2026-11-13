@@ -81,8 +81,9 @@ java -jar target/proyecto-finanzas-0.0.1-SNAPSHOT.jar --spring.profiles.active=w
 - Panel de demostración local con perfil `api,demo`; no habilitado en el perfil `api` ordinario.
 
 La persistencia de ingesta usa JDBC detrás de puertos; JPA queda disponible para otros adaptadores.
-El worker procesa `NORMALIZED` y las [plantillas Nu Colombia](docs/nu-parser.md) verificadas;
-registro manual/JWT e ingesta automática de correo siguen pendientes. El perfil `worker` registra transacciones; la demo lo ejecuta dentro
+El worker procesa `NORMALIZED`, las [plantillas Nu Colombia](docs/nu-parser.md) y
+[Gmail por IMAP](docs/email-worker.md), desactivado hasta configurar el buzón.
+Registro manual/JWT siguen pendientes. El perfil `worker` registra transacciones; la demo lo ejecuta dentro
 del proceso `api,demo`. [Funcionamiento y pruebas](docs/processing-worker.md).
 
 ## Invariantes

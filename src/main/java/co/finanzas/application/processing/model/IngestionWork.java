@@ -6,7 +6,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.UUID;
 
 public record IngestionWork(UUID id, OwnerId owner, UUID connectionId, String eventId,
-                            EncryptedPayload payload, byte[] hash, UUID leaseToken, int attempts) {
+                            EncryptedPayload payload, byte[] hash, UUID leaseToken, int attempts,String source) {
     public IngestionWork { hash = hash.clone(); }
     @Override public byte[] hash() { return hash.clone(); }
     public byte[] associatedData() {
