@@ -81,8 +81,9 @@ java -jar target/proyecto-finanzas-0.0.1-SNAPSHOT.jar --spring.profiles.active=w
 - Panel de demostración local con perfil `api,demo`; no habilitado en el perfil `api` ordinario.
 
 La persistencia de ingesta usa JDBC detrás de puertos; JPA queda disponible para otros adaptadores.
-Los eventos quedan en `RECEIVED`; parser Nu, jobs de procesamiento y registro manual/JWT todavía
-no están implementados. Recibir un evento no crea todavía una fila financiera en `transactions`.
+El worker procesa `NORMALIZED` hasta `PROCESSED`; parser Nu y registro manual/JWT todavía
+no están implementados. El perfil `worker` registra transacciones; la demo lo ejecuta dentro
+del proceso `api,demo`. [Funcionamiento y pruebas](docs/processing-worker.md).
 
 ## Invariantes
 
@@ -125,7 +126,7 @@ No se insertan credenciales de ejemplo. Aprovisionamiento local mediante
 `ingestion_logs` impone unicidad `(owner_id, source, source_connection_id, idempotency_key)`
 y FK compuesta a la conexión. SHA-256 del payload permite detectar conflicto de contenido.
 Referencia bancaria estable permite conciliación entre canales; monto/fecha/comercio no son
-una clave única. Worker futuro: leases, `SKIP LOCKED`, y commit conjunto de movimiento + estado.
+una clave única. Worker implementado: leases, `SKIP LOCKED`, y commit conjunto de movimiento + estado.
 No se implementan nonces en esta fase.
 
 ## Referencias

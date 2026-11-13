@@ -70,22 +70,27 @@ public final class PostgresIngestionRepository implements IngestionRepository {
             if (!inserted.isEmpty()) return inserted.getFirst();
             // READ COMMITTED obtains a new snapshot after waiting on the unique index conflict.
             return jdbc.query("""
-                    SELECT id, state, payload_sha256 FROM ingestion_logs
+                    SELECT id, state, payload_sha256, transaction_id, error_code, attempts FROM ingestion_logs
                     WHERE owner_id = ? AND source = 'IOS_SHORTCUTS' AND source_connection_id = ? AND idempotency_key = ?
                     """, (rs, row) -> {
                         if (!digests.matches(rs.getBytes("payload_sha256"), hash)) {
                             throw new IngestionProblem(IDEMPOTENCY_CONFLICT);
                         }
-                        return new IngestionReceipt(rs.getObject("id", UUID.class), rs.getString("state"));
+                        return receipt(rs);
                     }, source.ownerId().value(), source.connectionId(), eventId.toString()).getFirst();
         });
     }
 
     @Override public Optional<IngestionReceipt> find(AuthenticatedSource source, UUID id) {
         return jdbc.query("""
-                SELECT id, state FROM ingestion_logs
+                SELECT id, state, transaction_id, error_code, attempts FROM ingestion_logs
                 WHERE id = ? AND owner_id = ? AND source = 'IOS_SHORTCUTS' AND source_connection_id = ?
-                """, (rs, row) -> new IngestionReceipt(rs.getObject("id", UUID.class), rs.getString("state")),
+                """, (rs, row) -> receipt(rs),
                 id, source.ownerId().value(), source.connectionId()).stream().findFirst();
+    }
+
+    private static IngestionReceipt receipt(java.sql.ResultSet rs) throws java.sql.SQLException {
+        return new IngestionReceipt(rs.getObject("id", UUID.class), rs.getString("state"),
+                rs.getObject("transaction_id", UUID.class), rs.getString("error_code"), rs.getInt("attempts"));
     }
 }

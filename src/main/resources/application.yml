@@ -50,6 +50,13 @@ finance:
     payload-key-base64: ${INGESTION_PAYLOAD_KEY_BASE64:}
     payload-key-id: ${INGESTION_PAYLOAD_KEY_ID:v1}
   business-zone: America/Bogota
+  processing:
+    scheduling-enabled: ${PROCESSING_SCHEDULING_ENABLED:true}
+    poll-delay-ms: ${PROCESSING_POLL_DELAY_MS:2000}
+    batch-size: ${PROCESSING_BATCH_SIZE:20}
+    max-attempts: ${PROCESSING_MAX_ATTEMPTS:5}
+    lease-seconds: ${PROCESSING_LEASE_SECONDS:90}
+    retry-seconds: ${PROCESSING_RETRY_SECONDS:10}
 
 ---
 spring:

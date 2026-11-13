@@ -16,8 +16,8 @@ la verificación completa se ejecuta por separado y en CI.
 2. Pulsar **Cargar credenciales** y elegir `.env.demo-panel` en la raíz del proyecto.
    Si Windows oculta los archivos de configuración, pegar la ruta completa en el selector.
 3. Escribir importe y comercio; elegir gasto o ingreso y una fecha en hora de Bogotá.
-4. Pulsar **Enviar evento**. La actividad y la respuesta deben mostrar `HTTP 202` y `Recibido`.
-5. Pulsar **Repetir el mismo envío**. El ID se conserva y el contador no aumenta.
+4. Pulsar **Enviar evento**. La respuesta inicial muestra `HTTP 202` y `Recibido`; consultar tras unos segundos debe mostrar `Procesado` e ID de transacción.
+5. Pulsar **Repetir el mismo envío**. Los IDs de ingesta/transacción se conservan y el contador no aumenta; un duplicado procesado devuelve HTTP 200.
 6. Pulsar **Consultar estado** en la actividad para volver a leer el estado del backend.
 7. Pulsar **Nuevo evento** para crear otro con una clave diferente.
 
@@ -40,8 +40,8 @@ solo la API Key necesaria y el evento o ID solicitado.
 - Recargar/desconectar borra la sesión visual, no las ingestas aceptadas en PostgreSQL.
 - Un envío pendiente de confirmación conserva cuerpo y UUID para repetir exactamente el intento.
   Si se quiere descartar un intento incierto, la interfaz advierte del riesgo de duplicarlo.
-- Estos son eventos de ingesta, todavía sin procesamiento del worker: no generan saldo ni filas
-  financieras en `transactions`. `Recibido` significa evidencia guardada, no gasto contabilizado.
+- La demo procesa movimientos normalizados en `transactions`. `Procesado` confirma el registro
+  interno; aún sin cálculo de saldos. Ver [worker](processing-worker.md).
 
 ## Arranque y aislamiento
 

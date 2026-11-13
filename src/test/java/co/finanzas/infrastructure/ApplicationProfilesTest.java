@@ -21,6 +21,8 @@ class ApplicationProfilesTest {
     @Test
     void apiStartsMigratesAndDeniesUnauthenticatedRequests() throws Exception {
         withProfile("api", context -> {
+            assertTrue(context.getBeansOfType(co.finanzas.application.processing.port.in.ProcessIngestionUseCase.class).isEmpty());
+            assertTrue(context.getBeansOfType(co.finanzas.adapters.in.worker.IngestionProcessingJob.class).isEmpty());
             WebServerApplicationContext web = assertInstanceOf(WebServerApplicationContext.class, context);
             try (HttpClient client = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build()) {
                 HttpRequest request = HttpRequest.newBuilder(URI.create("http://127.0.0.1:"
@@ -37,7 +39,10 @@ class ApplicationProfilesTest {
 
     @Test
     void workerStartsWithoutHttpServer() throws Exception {
-        withProfile("worker", context -> assertFalse(context instanceof WebServerApplicationContext));
+        withProfile("worker", context -> {
+            assertFalse(context instanceof WebServerApplicationContext);
+            assertNotNull(context.getBean(co.finanzas.adapters.in.worker.IngestionProcessingJob.class));
+        });
     }
 
     @Test

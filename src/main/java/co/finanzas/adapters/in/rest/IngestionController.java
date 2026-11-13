@@ -1,4 +1,5 @@
 package co.finanzas.adapters.in.rest;
+import co.finanzas.adapters.shared.ingestion.IngestionRequestDecoder;
 
 import co.finanzas.application.ingestion.model.AuthenticatedSource;
 import co.finanzas.application.ingestion.port.in.ReceiveIngestionUseCase;
@@ -12,7 +13,13 @@ import java.util.UUID;
 @RestController
 @Profile("api & !worker")
 public class IngestionController {
-    public record ReceiptBody(@com.fasterxml.jackson.annotation.JsonProperty("ingestion_id") UUID ingestionId, String status) { }
+    public record ReceiptBody(@com.fasterxml.jackson.annotation.JsonProperty("ingestion_id") UUID ingestionId, String status,
+            @com.fasterxml.jackson.annotation.JsonProperty("transaction_id") UUID transactionId,
+            @com.fasterxml.jackson.annotation.JsonProperty("error_code") String errorCode, int attempts) {
+        static ReceiptBody from(co.finanzas.application.ingestion.model.IngestionReceipt receipt) {
+            return new ReceiptBody(receipt.ingestionId(), receipt.status(), receipt.transactionId(), receipt.errorCode(), receipt.attempts());
+        }
+    }
     private final ReceiveIngestionUseCase ingestion;
     private final IngestionRequestDecoder decoder;
     public IngestionController(ReceiveIngestionUseCase ingestion, IngestionRequestDecoder decoder) {
@@ -29,14 +36,14 @@ public class IngestionController {
         return ResponseEntity.status(receipt.terminal() ? 200 : 202)
                 .location(URI.create("/api/v1/ingestions/" + receipt.ingestionId()))
                 .header("Cache-Control", "no-store")
-                .body(new ReceiptBody(receipt.ingestionId(), receipt.status()));
+                .body(ReceiptBody.from(receipt));
     }
 
     @GetMapping(value = "/api/v1/ingestions/{id}", produces = "application/json")
     public ResponseEntity<ReceiptBody> status(@AuthenticationPrincipal AuthenticatedSource source, @PathVariable String id) {
         var receipt = ingestion.status(source, canonicalUuid(id));
         return ResponseEntity.ok().header("Cache-Control", "no-store")
-                .body(new ReceiptBody(receipt.ingestionId(), receipt.status()));
+                .body(ReceiptBody.from(receipt));
     }
 
     private static UUID canonicalUuid(String value) {

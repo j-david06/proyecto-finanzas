@@ -44,6 +44,23 @@ function resetAttempt() {
   updateControls();
 }
 
+function showReceipt(receipt) {
+  $('receipt-state').textContent = `${stateLabel(receipt.status)} · ${receipt.status}`;
+  $('receipt-id').textContent = receipt.ingestion_id;
+  $('transaction-id').textContent = receipt.transaction_id || 'Aún sin registrar';
+  $('processing-result').textContent = processingMessage(receipt);
+  $('receipt-details').hidden = false;
+}
+
+function processingMessage(receipt) {
+  if (receipt.status === 'PROCESSED') return 'Transacción registrada en PostgreSQL.';
+  if (receipt.status === 'REVIEW') return receipt.error_code === 'PARSER_UNAVAILABLE'
+    ? 'Este mensaje necesita un parser; requiere revisión.' : 'Requiere revisión. No se registró una transacción nueva.';
+  if (receipt.status === 'DEAD') return 'Se agotaron los intentos. Requiere intervención.';
+  if (receipt.status === 'RETRY') return 'El worker volverá a intentar el procesamiento.';
+  return 'Pendiente de procesamiento. Consulta su estado en unos segundos.';
+}
+
 function clearConnection() {
   state.controller?.abort();
   state.connection = null;
@@ -149,17 +166,16 @@ async function submitAttempt() {
     state.unknown = false;
     state.lastReceipt = result.data.ingestion_id;
     const existing = state.rows.find(row=>row.id === result.data.ingestion_id);
-    if (existing) existing.status = result.data.status;
+    if (existing) Object.assign(existing,{status:result.data.status,transaction_id:result.data.transaction_id,error_code:result.data.error_code});
     else {
       state.accepted += 1;
-      state.rows.unshift({...state.attempt,id:result.data.ingestion_id,status:result.data.status});
+      state.rows.unshift({...state.attempt,id:result.data.ingestion_id,status:result.data.status,
+        transaction_id:result.data.transaction_id,error_code:result.data.error_code});
       state.rows = state.rows.slice(0,20);
     }
     $('http-status').className = 'http-status good';
     $('response-description').textContent = replay ? 'Repetición aceptada. Se conservó el ID de la ingesta.' : 'Evento aceptado y guardado por tu API.';
-    $('receipt-state').textContent = `${stateLabel(result.data.status)} · ${result.data.status}`;
-    $('receipt-id').textContent = result.data.ingestion_id;
-    $('receipt-details').hidden = false;
+    showReceipt(result.data);
     message('form-message',replay ? 'Mismo evento, mismo ID. Sin una nueva ingesta.' : 'Envío confirmado. Puedes consultar su estado en la actividad.','success');
     renderActivity();
   } catch {
@@ -209,8 +225,8 @@ async function poll(row, button, feedback) {
     const result = await request(`/api/v1/ingestions/${row.id}`);
     if (!result.ok) throw new Error(errorMessage(result.status,result.data?.code));
     if (!validReceipt(result.data) || result.data.ingestion_id !== row.id) throw new Error('La respuesta de estado no pudo validarse.');
-    row.status = result.data.status;
-    if (state.lastReceipt === row.id) $('receipt-state').textContent = `${stateLabel(row.status)} · ${row.status}`;
+    Object.assign(row,{status:result.data.status,transaction_id:result.data.transaction_id,error_code:result.data.error_code});
+    if (state.lastReceipt === row.id) showReceipt(result.data);
     renderActivity();
   } catch (error) {
     feedback.textContent = error instanceof TypeError || error.name === 'AbortError' ? 'No se pudo conectar. Intenta consultar de nuevo.' : error.message;
@@ -238,6 +254,8 @@ function renderActivity() {
     badge.className = `state-badge ${stateClass(row.status)}`;
     const button = item.querySelector('.query-button');
     const feedback = item.querySelector('.event-query-message');
+    feedback.textContent = ['PROCESSED','REVIEW','DEAD','RETRY'].includes(row.status)
+      ? processingMessage(row) : '';
     button.setAttribute('aria-label',`Consultar estado de ${row.merchant}`);
     button.disabled = state.busy;
     button.addEventListener('click',()=>poll(row,button,feedback));

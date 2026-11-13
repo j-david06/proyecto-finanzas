@@ -1,6 +1,5 @@
-package co.finanzas.adapters.in.rest;
+package co.finanzas.adapters.shared.ingestion;
 
-import co.finanzas.adapters.in.rest.dto.IngestionRequest;
 import co.finanzas.domain.shared.Money;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -29,7 +28,7 @@ public final class IngestionRequestDecoder {
     public Decoded decode(byte[] body) {
         try {
             JsonNode tree = mapper.readTree(body);
-            if (tree == null || !tree.isObject()) throw new ApiProblem(400, "INVALID_JSON");
+            if (tree == null || !tree.isObject()) throw new PayloadDecodingException(400, "INVALID_JSON");
             if (!tree.path("schema_version").isIntegralNumber()) invalid();
             requireText(tree, "trigger", "format", "account_id");
             if (tree.path("movement").isObject()) {
@@ -55,13 +54,13 @@ public final class IngestionRequestDecoder {
             OffsetDateTime.parse(request.message().receivedAt());
             return new Decoded(request, null);
         } catch (JsonProcessingException exception) {
-            throw new ApiProblem(400, "INVALID_JSON");
+            throw new PayloadDecodingException(400, "INVALID_JSON");
         } catch (DateTimeParseException exception) {
-            throw new ApiProblem(422, "INVALID_MOVEMENT");
+            throw new PayloadDecodingException(422, "INVALID_MOVEMENT");
         } catch (IllegalArgumentException exception) {
-            throw new ApiProblem(422, "INVALID_MOVEMENT");
+            throw new PayloadDecodingException(422, "INVALID_MOVEMENT");
         } catch (IOException exception) {
-            throw new ApiProblem(400, "INVALID_JSON");
+            throw new PayloadDecodingException(400, "INVALID_JSON");
         }
     }
 
@@ -71,5 +70,5 @@ public final class IngestionRequestDecoder {
     private static void requireOptionalText(JsonNode node, String... fields) {
         for (String field : fields) if (node.hasNonNull(field) && !node.path(field).isTextual()) invalid();
     }
-    private static void invalid() { throw new ApiProblem(422, "INVALID_MOVEMENT"); }
+    private static void invalid() { throw new PayloadDecodingException(422, "INVALID_MOVEMENT"); }
 }

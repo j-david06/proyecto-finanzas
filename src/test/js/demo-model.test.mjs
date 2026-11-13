@@ -45,4 +45,7 @@ test('accepts only recognized receipt states and canonical IDs',()=>{
   assert.equal(validReceipt({ingestion_id:eventId,status:'INVENTED'}),false);
   assert.equal(validReceipt({ingestion_id:'<script>',status:'RECEIVED'}),false);
   assert.equal(stateLabel('REVIEW'),'Por revisar');
+  assert.equal(validReceipt({ingestion_id:eventId,status:'PROCESSED'}),false);
+  assert.equal(validReceipt({ingestion_id:eventId,status:'PROCESSED',transaction_id:account}),true);
+  assert.equal(validReceipt({ingestion_id:eventId,status:'PROCESSED',transaction_id:'invalid'}),false);
 });
