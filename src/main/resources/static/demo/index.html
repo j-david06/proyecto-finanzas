@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="es-CO">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="color-scheme" content="light">
+  <meta name="referrer" content="no-referrer">
+  <title>Finanzas · Panel demo</title>
+  <link rel="icon" href="./icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="./styles.css">
+  <script type="module" src="./app.js"></script>
+</head>
+<body>
+  <a class="skip" href="#main">Ir al contenido</a>
+  <div class="layout">
+    <aside class="sidebar" aria-label="Navegación">
+      <a class="brand" href="./index.html"><span class="brand-icon" aria-hidden="true">f.</span><span>finanzas<span class="brand-sub">TU ESPACIO PERSONAL</span></span></a>
+      <div class="side-caption">EXPLORAR</div>
+      <a class="nav-active" href="#main"><span aria-hidden="true">◫</span> Probar ingesta <span class="nav-dot"></span></a>
+      <a class="nav-help" href="#help"><span aria-hidden="true">ⓘ</span> Cómo funciona</a>
+      <div class="sidebar-bottom"><span class="privacy-icon" aria-hidden="true">◇</span><strong>Solo esta sesión</strong><p>Tu clave no se guarda en el navegador.</p><span class="country">CO <span>Colombia · COP</span></span></div>
+    </aside>
+    <div class="workspace">
+      <header class="topbar"><div><span class="breadcrumb">Mi espacio</span><span class="slash">/</span><span>Panel de pruebas</span></div><span class="demo-badge"><span></span> Demo local</span></header>
+      <main id="main">
+        <section class="page-heading"><div><div class="eyebrow">PEQUEÑOS PASOS, MÁS CONTROL</div><h1>Cada movimiento,<br>en su lugar<span>.</span></h1><p>Prueba el envío de un ingreso o un gasto y sigue su estado.</p></div><div class="session-label"><span class="status-dot" id="connection-dot"></span><span id="connection-state">Sin configurar</span></div></section>
+
+        <details class="connection-card" id="connection-details" open>
+          <summary><span class="step-number">01</span><span><strong>Conecta tu cuenta de prueba</strong><small>API Key y cuenta autorizada · solo en memoria</small></span><span class="details-arrow" aria-hidden="true">⌄</span></summary>
+          <div class="connection-content">
+            <p class="connection-description">Carga <code>.env.demo-panel</code> o usa los datos de <code>.env.shortcuts</code>. La clave solo se envía a este servidor.</p>
+            <form id="connection-form" autocomplete="off">
+              <div class="connection-grid"><label>API Key<input id="api-key" name="api-key" type="password" autocomplete="off" spellcheck="false" placeholder="pf_ing_…" required maxlength="180"></label><label>Cuenta autorizada<input id="account-id" name="account-id" type="text" autocomplete="off" spellcheck="false" placeholder="UUID de la cuenta" required maxlength="36"></label></div>
+              <div class="connection-actions"><button class="file-button" id="import-file" type="button"><span aria-hidden="true">↥</span> Cargar credenciales</button><input id="credential-file" type="file" accept=".demo-panel,.shortcuts,.env,text/plain" hidden><button class="button secondary" type="submit">Usar conexión</button><button class="text-button" id="disconnect" type="button" disabled>Desconectar</button><span class="server-address" id="server-address"></span></div>
+            </form>
+            <p id="connection-message" class="inline-message" role="status" aria-live="polite"></p>
+          </div>
+        </details>
+
+        <section class="metrics" aria-label="Resumen de esta sesión"><article><div class="metric-title">Eventos aceptados <span aria-hidden="true">↗</span></div><div class="metric-value" id="accepted-count">0</div><p>Únicos en esta sesión</p></article><article><div class="metric-title">En espera <span class="purple" aria-hidden="true">◷</span></div><div class="metric-value" id="pending-count">0</div><p>En los eventos visibles</p></article><article class="metric-note"><span class="note-icon" aria-hidden="true">i</span><div><strong>Estamos probando el envío</strong><p>Estos eventos aún no generan saldos ni movimientos financieros.</p></div></article></section>
+
+        <div class="content-grid">
+          <section class="card movement-card" aria-labelledby="movement-title">
+            <div class="card-heading"><div><div class="eyebrow">UN EVENTO A LA VEZ</div><h2 id="movement-title">Nuevo movimiento</h2></div><span class="card-symbol" aria-hidden="true">↗</span></div>
+            <form id="movement-form" autocomplete="off">
+              <fieldset id="movement-fields"><legend class="visually-hidden">Datos del evento</legend>
+                <div class="kind-selector" role="group" aria-label="Tipo de movimiento"><button type="button" class="kind-button selected" data-kind="EXPENSE" aria-pressed="true"><span aria-hidden="true">↗</span> Gasto</button><button type="button" class="kind-button" data-kind="INCOME" aria-pressed="false"><span aria-hidden="true">↙</span> Ingreso</button></div>
+                <label class="amount-label" for="amount">¿Cuánto fue?</label><div class="amount-field"><span aria-hidden="true">$</span><input id="amount" name="amount" type="text" inputmode="decimal" placeholder="0,00" maxlength="19" required aria-describedby="amount-help"><span class="currency">COP</span></div><p class="field-help" id="amount-help">Sin separadores de miles. Ejemplo: 45900,00</p>
+                <label>Comercio o concepto<input id="merchant" name="merchant" type="text" placeholder="Ej. supermercado, nómina…" maxlength="200" required></label>
+                <div class="form-grid"><label>Fecha y hora · Bogotá<input id="occurred-at" name="occurred-at" type="datetime-local" required></label><label>Origen del evento<select id="trigger" name="trigger"><option value="APPLE_PAY">Apple Pay</option><option value="SMS">SMS</option><option value="EMAIL">Correo electrónico</option></select></label></div>
+              </fieldset>
+              <div class="form-note"><span aria-hidden="true">◇</span><p>El importe se envía en COP. El evento se conserva cifrado en tu backend.</p></div>
+              <button class="button primary submit-button" id="send" type="submit"><span>Enviar evento</span><span aria-hidden="true">→</span></button>
+              <button class="button primary submit-button" id="new-event" type="button" hidden><span>Nuevo evento</span><span aria-hidden="true">＋</span></button>
+              <p id="form-message" class="inline-message" role="status" aria-live="polite"></p>
+            </form>
+          </section>
+
+          <div class="activity-column">
+            <section class="card activity-card" aria-labelledby="activity-title"><div class="card-heading"><div><div class="eyebrow">TU PRUEBA EN VIVO</div><h2 id="activity-title">Actividad de la sesión</h2></div><span class="count-badge" id="activity-count">0 eventos</span></div>
+              <div class="empty-state" id="empty-state"><div class="empty-art" aria-hidden="true"><div class="receipt-art"><span></span><span></span><span></span><b>✓</b></div></div><h3>Aquí empieza el registro</h3><p>Envía tu primer evento.<br>Podrás ver su estado y consultar la respuesta.</p><span class="empty-hint">Tu historial aparece solo en esta pestaña</span></div>
+              <ul class="activity-list" id="activity-list" aria-live="polite" aria-label="Eventos enviados"></ul>
+              <div class="activity-footer"><span class="status-dot purple-dot"></span> Mostramos hasta 20 eventos de esta sesión.</div>
+            </section>
+            <section class="card response-card" aria-labelledby="response-title"><div class="response-heading"><h2 id="response-title">Última respuesta</h2><span id="http-status" class="http-status">Sin envío</span></div><p id="response-description">La respuesta de tu API aparecerá aquí.</p><dl id="receipt-details" hidden><div><dt>Estado</dt><dd id="receipt-state">—</dd></div><div><dt>ID de ingesta</dt><dd id="receipt-id" class="mono">—</dd></div></dl><button id="repeat" type="button" class="repeat-button" disabled><span aria-hidden="true">↻</span> Repetir el mismo envío</button><p class="repeat-hint">Misma clave y contenido. Una repetición aceptada conserva el ID.</p></section>
+          </div>
+        </div>
+        <details class="help-card" id="help"><summary>¿Qué estoy probando exactamente?<span aria-hidden="true">＋</span></summary><div><p>Este panel envía eventos reales a tu API local. <strong>Recibido</strong> significa que la evidencia quedó guardada. El worker y el parser todavía no convierten esos eventos en transacciones.</p><p>“Repetir el mismo envío” reutiliza los bytes y la clave de idempotencia del último intento. “Nuevo evento” genera una clave diferente. Si se pierde la conexión, repite el intento anterior para evitar duplicados.</p><p>La clave, la configuración y la actividad permanecen en memoria. Recargar o cerrar la página borra la sesión visual; los eventos aceptados permanecen en PostgreSQL. No hay conexión con Nu ni cargos bancarios.</p></div></details>
+        <footer class="page-footer"><span>Un paso más cerca de tener claridad.</span><span>Finanzas · Entorno de demostración</span></footer>
+      </main>
+    </div>
+  </div>
+  <template id="event-template"><li class="event-item"><div class="event-top"><span class="event-icon" aria-hidden="true"></span><div class="event-copy"><strong class="event-merchant"></strong><span class="event-time"></span></div><strong class="event-amount"></strong></div><div class="event-bottom"><span class="state-badge"></span><button type="button" class="query-button">Consultar estado <span aria-hidden="true">↻</span></button></div><p class="event-query-message" role="status"></p></li></template>
+</body>
+</html>
