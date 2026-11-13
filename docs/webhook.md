@@ -118,7 +118,7 @@ curl -i 'http://127.0.0.1:8080/api/v1/ingestions/UUID_DE_RESPUESTA' \
   -H "X-API-Key: $INGESTION_API_KEY"
 ```
 
-Esta fase solo persiste la evidencia. Aún no debe aparecer un gasto en `transactions`.
+Con un worker activo, los eventos NORMALIZED generan transacciones POSTED. Consultar hasta PROCESSED y comprobar transaction_id. Ver [worker](processing-worker.md).
 
 ## Contrato y errores
 
@@ -139,7 +139,7 @@ Esta fase solo persiste la evidencia. Aún no debe aparecer un gasto en `transac
 - `503`: almacenamiento no disponible. Reintentar con la misma clave y cuerpo, backoff y jitter.
 
 `HMAC_REQUIRED` se rechaza sin degradación; no hay almacén de nonces. La clave autentica el
-dispositivo, no demuestra liquidación bancaria. Correlación entre canales y parsers Nu pendientes.
+dispositivo, no demuestra liquidación bancaria. Deduplicación bancaria estable disponible; parsers Nu pendientes.
 
 ## Cifrado y persistencia
 

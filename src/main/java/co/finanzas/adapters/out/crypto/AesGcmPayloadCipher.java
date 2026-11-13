@@ -2,6 +2,8 @@ package co.finanzas.adapters.out.crypto;
 
 import co.finanzas.application.ingestion.model.EncryptedPayload;
 import co.finanzas.application.ingestion.port.out.PayloadCipherPort;
+import co.finanzas.application.processing.port.out.PayloadDecryptionPort;
+import co.finanzas.application.processing.model.ProcessingFailure;
 import javax.crypto.Cipher;
 import javax.crypto.spec.GCMParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
@@ -10,7 +12,7 @@ import java.security.GeneralSecurityException;
 import java.security.SecureRandom;
 import java.util.Base64;
 
-public final class AesGcmPayloadCipher implements PayloadCipherPort {
+public final class AesGcmPayloadCipher implements PayloadCipherPort, PayloadDecryptionPort {
     private final SecretKeySpec key;
     private final String keyId;
     private final SecureRandom random = new SecureRandom();
@@ -39,6 +41,26 @@ public final class AesGcmPayloadCipher implements PayloadCipherPort {
                     .put((byte) 1).put(nonce).put(encrypted).array(), keyId);
         } catch (GeneralSecurityException exception) {
             throw new IllegalStateException("Payload encryption failed", exception);
+        }
+    }
+
+    @Override public byte[] decrypt(EncryptedPayload payload, byte[] associatedData) {
+        var unavailable = ProcessingFailure.Code.KEY_UNAVAILABLE;
+        var invalid = ProcessingFailure.Code.PAYLOAD_AUTHENTICATION_FAILED;
+        if (!keyId.equals(payload.keyId())) {
+            throw new ProcessingFailure(unavailable, true);
+        }
+        byte[] envelope = payload.bytes();
+        if (envelope.length < 29 || envelope.length > 65565 || envelope[0] != 1) {
+            throw new ProcessingFailure(invalid, false);
+        }
+        try {
+            Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding");
+            cipher.init(Cipher.DECRYPT_MODE, key, new GCMParameterSpec(128, envelope, 1, 12));
+            cipher.updateAAD(associatedData);
+            return cipher.doFinal(envelope, 13, envelope.length - 13);
+        } catch (GeneralSecurityException exception) {
+            throw new ProcessingFailure(invalid, false);
         }
     }
 }

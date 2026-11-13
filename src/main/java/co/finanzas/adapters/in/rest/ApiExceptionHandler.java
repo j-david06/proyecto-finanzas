@@ -10,6 +10,10 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 @RestControllerAdvice
 public class ApiExceptionHandler {
+    @ExceptionHandler(co.finanzas.adapters.shared.ingestion.PayloadDecodingException.class)
+    ResponseEntity<ApiErrors.ErrorBody> payload(co.finanzas.adapters.shared.ingestion.PayloadDecodingException problem) {
+        return response(problem.status(), problem.code());
+    }
     @ExceptionHandler(IngestionProblem.class)
     ResponseEntity<ApiErrors.ErrorBody> application(IngestionProblem problem) {
         return response(ApiErrors.status(problem), problem.code().name());

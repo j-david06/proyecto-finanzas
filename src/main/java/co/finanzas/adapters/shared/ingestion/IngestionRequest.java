@@ -1,4 +1,4 @@
-package co.finanzas.adapters.in.rest.dto;
+package co.finanzas.adapters.shared.ingestion;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.Valid;

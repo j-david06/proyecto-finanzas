@@ -56,7 +56,9 @@ export function createAttempt(fields, accountId, eventId) {
 }
 
 export function validReceipt(receipt) {
-  return Boolean(receipt && UUID_PATTERN.test(receipt.ingestion_id) && Object.hasOwn(STATES, receipt.status));
+  return Boolean(receipt && UUID_PATTERN.test(receipt.ingestion_id) && Object.hasOwn(STATES, receipt.status)
+    && (receipt.transaction_id == null || UUID_PATTERN.test(receipt.transaction_id))
+    && (receipt.status !== 'PROCESSED' || UUID_PATTERN.test(receipt.transaction_id)));
 }
 export function stateLabel(state) { return STATES[state] || 'Sin confirmar'; }
 export function pendingState(state) { return ['RECEIVED','PROCESSING','RETRY'].includes(state); }
