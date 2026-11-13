@@ -14,6 +14,10 @@ public final class GmailAuthenticationPolicy {
         this.sender=sender.toLowerCase(Locale.ROOT);
     }
     public String rejection(Message message) throws MessagingException {
+        try { return checkedRejection(message); }
+        catch(IllegalArgumentException exception){return "INVALID_AUTHENTICATION_HEADER";}
+    }
+    private String checkedRejection(Message message) throws MessagingException {
         String[] from=message.getHeader("From");
         if(from==null || from.length!=1 || from[0].length()>512)return "SENDER_NOT_ALLOWED";
         InternetAddress[] addresses;

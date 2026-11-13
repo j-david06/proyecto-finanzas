@@ -53,6 +53,12 @@ public class MailDecoderTest {
         var m=message(NuMailDecoder.PAYMENT,payment(),AUTH);m.addHeader("Authentication-Results",AUTH);
         assertEquals("REVIEW",decode(lease(),m,Instant.now()).state());
     }
+    @Test void malformedAuthenticationIsAReviewCodeRatherThanAPollBlockingException()throws Exception{
+        var policy=new GmailAuthenticationPolicy(SENDER);
+        for(String header:List.of("mx.google.com; dmarc=\"pass\" header.from=example.test","mx.google.com; dmarc=pass (unclosed")) {
+            assertEquals("INVALID_AUTHENTICATION_HEADER",policy.rejection(message(NuMailDecoder.PAYMENT,payment(),header)));
+        }
+    }
     @Test void htmlBodyIsExtractedWithoutOpeningPdfAttachmentOrLoadingResources() throws Exception {
         var message=message(NuMailDecoder.STATEMENT,"",AUTH);var mixed=new MimeMultipart("mixed");
         var html=new MimeBodyPart();String body=NuMessageParserTest.sample("statement").lines().map(s->"<p>"+s+"</p>").collect(java.util.stream.Collectors.joining());
