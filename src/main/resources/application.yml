@@ -46,6 +46,9 @@ finance:
   ingestion:
     authentication-profile: API_KEY_ONLY
     max-payload-bytes: 65536
+    require-https: ${INGESTION_REQUIRE_HTTPS:true}
+    payload-key-base64: ${INGESTION_PAYLOAD_KEY_BASE64:}
+    payload-key-id: ${INGESTION_PAYLOAD_KEY_ID:v1}
   business-zone: America/Bogota
 
 ---

@@ -27,7 +27,7 @@ class ApplicationProfilesTest {
                                 + web.getWebServer().getPort() + "/api/v1/transactions/ingest"))
                         .timeout(Duration.ofSeconds(5)).header("Content-Type", "application/json")
                         .POST(HttpRequest.BodyPublishers.ofString("{}")) .build();
-                assertEquals(403, client.send(request, HttpResponse.BodyHandlers.discarding()).statusCode());
+                assertEquals(401, client.send(request, HttpResponse.BodyHandlers.discarding()).statusCode());
             }
         });
     }
@@ -47,7 +47,9 @@ class ApplicationProfilesTest {
                         "--spring.flyway.schemas=" + schema,
                         "--spring.flyway.default-schema=" + schema,
                         "--spring.jpa.properties.hibernate.default_schema=" + schema,
-                        "--spring.main.keep-alive=false", "--server.port=0")) {
+                        "--spring.main.keep-alive=false", "--server.port=0",
+                        "--finance.ingestion.require-https=false",
+                        "--finance.ingestion.payload-key-base64=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=")) {
             assertion.accept(context);
         } finally {
             if (!schema.matches("finanzas_boot_[a-f0-9]{32}")) {

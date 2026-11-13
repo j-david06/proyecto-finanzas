@@ -28,6 +28,14 @@ while IFS='=' read -r key value || [ -n "$key" ]; do
 done < .env
 
 docker compose up -d --wait postgres
+bash scripts/configure-local-ingestion.sh
+while IFS='=' read -r key value || [ -n "$key" ]; do
+  case "$key" in
+    INGESTION_PAYLOAD_KEY_BASE64|INGESTION_PAYLOAD_KEY_ID) export "$key=${value%$'\r'}" ;;
+  esac
+done < .env
+# Solo para probar en localhost; en despliegue HTTPS es obligatorio.
+export INGESTION_REQUIRE_HTTPS=false
 "$mvn_bin" '-Dmaven.repo.local=C:/RTEMP/finanzas-m2' verify
 java -jar target/proyecto-finanzas-0.0.1-SNAPSHOT.jar --spring.profiles.active=api
 ```
@@ -55,15 +63,15 @@ java -jar target/proyecto-finanzas-0.0.1-SNAPSHOT.jar --spring.profiles.active=w
 
 - Arranque Spring Boot, perfiles, configuración y migración con seis tablas.
 - Diez tipos de dominio solicitados, enums auxiliares y validaciones financieras.
-- Interfaz `HmacVerificationPort` sin implementación ni almacén de nonces.
-- `API_KEY_ONLY` como perfil predeterminado de ingesta.
-- Seguridad HTTP cerrada: todas las rutas denegadas. No se crean usuarios ni contraseñas Spring.
+- Webhook autenticado, inbox cifrado, idempotencia concurrente y consulta de estado por conexión.
+- Interfaz `HmacVerificationPort` sin implementación ni almacén de nonces; `API_KEY_ONLY` es el perfil soportado.
+- Permisos por cuenta, revocación, expiración y aislamiento por propietario/conexión.
+- Límite JSON real de 64 KiB, también con transferencia chunked; errores sin detalles internos.
+- [Contrato, aprovisionamiento y prueba desde Git Bash](docs/webhook.md).
 
-Esta entrega no incorpora todavía `ApiKeyAuthenticationFilter`, controladores, persistencia JPA,
-parser Nu ni jobs de ingesta. El esquema los respalda; no hay webhook funcional expuesto.
-El límite JSON de 64 KiB debe aplicarse al cuerpo de REST cuando se implemente el adaptador;
-`max-http-form-post-size` limita formularios, no JSON. `finance.ingestion.max-payload-bytes`
-es la configuración prevista para ese control.
+La persistencia de ingesta usa JDBC detrás de puertos; JPA queda disponible para otros adaptadores.
+Los eventos quedan en `RECEIVED`; parser Nu, jobs de procesamiento y registro manual/JWT todavía
+no están implementados. Recibir un evento no crea todavía una fila financiera en `transactions`.
 
 ## Invariantes
 
@@ -87,7 +95,8 @@ es la configuración prevista para ese control.
 
 ## Credenciales e idempotencia
 
-No se insertan credenciales de ejemplo. Aprovisionamiento futuro, solo desde un canal confiable:
+No se insertan credenciales de ejemplo. Aprovisionamiento local mediante
+`bash scripts/provision-shortcuts.sh OWNER_UUID ACCOUNT_UUID`, con una cuenta ya existente:
 
 1. Crear cuenta y conexión con el mismo `owner_id`.
 2. Generar secreto aleatorio de al menos 256 bits. Formato previsto:
@@ -96,11 +105,11 @@ No se insertan credenciales de ejemplo. Aprovisionamiento futuro, solo desde un 
    en `source_connections.api_key_sha256` (`bytea`, 32 bytes).
 4. `allowed_account_ids`: array UUID no vacío, sin duplicados, limitado al mismo propietario.
    Triggers validan pertenencia y protegen referencias de borrado/cambio de propietario.
-5. El futuro filtro debe comparar hashes en tiempo constante y comprobar conexión activa,
+5. El filtro compara hashes en tiempo constante y comprueba conexión activa,
    expiración, `source = IOS_SHORTCUTS` y perfil soportado. `HMAC_REQUIRED` está reservado:
    rechazar mientras no exista verificador, sin degradación a API Key.
-6. Autorizar `account_id` contra la lista **en cada petición**; no confiar en propietario/source
-   enviados por el cliente. Rotar hash sin cambiar el ID de conexión conserva idempotencia.
+6. La admisión autoriza `account_id` y vuelve a comprobar credencial y lista dentro de la transacción,
+   sin confiar en propietario/source del JSON. Rotar hash sin cambiar el ID conserva idempotencia.
 
 `ingestion_logs` impone unicidad `(owner_id, source, source_connection_id, idempotency_key)`
 y FK compuesta a la conexión. SHA-256 del payload permite detectar conflicto de contenido.
