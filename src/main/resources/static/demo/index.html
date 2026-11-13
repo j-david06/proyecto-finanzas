@@ -44,10 +44,19 @@
             <div class="card-heading"><div><div class="eyebrow">UN EVENTO A LA VEZ</div><h2 id="movement-title">Nuevo movimiento</h2></div><span class="card-symbol" aria-hidden="true">↗</span></div>
             <form id="movement-form" autocomplete="off">
               <fieldset id="movement-fields"><legend class="visually-hidden">Datos del evento</legend>
+                <label>Entrada<select id="input-format"><option value="NORMALIZED">Movimiento normalizado</option><option value="RAW_MESSAGE">Texto Nu / OCR</option></select></label>
+                <div id="normalized-fields">
                 <div class="kind-selector" role="group" aria-label="Tipo de movimiento"><button type="button" class="kind-button selected" data-kind="EXPENSE" aria-pressed="true"><span aria-hidden="true">↗</span> Gasto</button><button type="button" class="kind-button" data-kind="INCOME" aria-pressed="false"><span aria-hidden="true">↙</span> Ingreso</button></div>
                 <label class="amount-label" for="amount">¿Cuánto fue?</label><div class="amount-field"><span aria-hidden="true">$</span><input id="amount" name="amount" type="text" inputmode="decimal" placeholder="0,00" maxlength="19" required aria-describedby="amount-help"><span class="currency">COP</span></div><p class="field-help" id="amount-help">Sin separadores de miles. Ejemplo: 45900,00</p>
                 <label>Comercio o concepto<input id="merchant" name="merchant" type="text" placeholder="Ej. supermercado, nómina…" maxlength="200" required></label>
                 <div class="form-grid"><label>Fecha y hora · Bogotá<input id="occurred-at" name="occurred-at" type="datetime-local" required></label><label>Origen del evento<select id="trigger" name="trigger"><option value="APPLE_PAY">Apple Pay</option><option value="SMS">SMS</option><option value="EMAIL">Correo electrónico</option></select></label></div>
+                </div>
+                <div id="raw-fields" hidden>
+                  <label>Origen del texto<select id="raw-trigger"><option value="APP_DETAIL">Detalle app Nu / captura OCR</option><option value="EMAIL">Correo de pago de tarjeta</option></select></label>
+                  <label>Texto del comprobante<textarea id="raw-text" rows="12" maxlength="8192" placeholder="Pega el texto completo con sus saltos de línea"></textarea></label>
+                  <label>Cuenta destino de tarjeta (solo pago por correo)<input id="destination-account" type="text" placeholder="UUID de la cuenta CREDIT_CARD"></label>
+                  <p class="field-help">La cuenta de conexión es el origen. El destino debe estar autorizado y configurado. Cancelada se registra como VOIDED.</p>
+                </div>
               </fieldset>
               <div class="form-note"><span aria-hidden="true">◇</span><p>El importe se envía en COP. El evento se conserva cifrado en tu backend.</p></div>
               <button class="button primary submit-button" id="send" type="submit"><span>Enviar evento</span><span aria-hidden="true">→</span></button>

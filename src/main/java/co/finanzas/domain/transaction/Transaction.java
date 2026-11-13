@@ -18,7 +18,7 @@ public record Transaction(UUID id, OwnerId ownerId, Account account, Account cou
                           TransactionKind kind, TransactionStatus status, Money amount,
                           Instant occurredAt, String merchant, String description,
                           String bankProvider, String bankEventId,
-                          LocalDate recurringDueOn, Integer installmentNumber) {
+                          LocalDate recurringDueOn, Integer installmentNumber, TransactionMetadata metadata) {
     public Transaction {
         Objects.requireNonNull(id, "transactionId");
         Objects.requireNonNull(ownerId, "ownerId");
@@ -27,6 +27,9 @@ public record Transaction(UUID id, OwnerId ownerId, Account account, Account cou
         Objects.requireNonNull(status, "status");
         Objects.requireNonNull(amount, "amount");
         Objects.requireNonNull(occurredAt, "occurredAt");
+        Objects.requireNonNull(metadata, "metadata");
+        if (metadata.tax4x1000() != null && (!amount.currency().equals(Money.COP)
+                || metadata.tax4x1000().compareTo(amount.amount()) > 0)) throw new IllegalArgumentException("Tax must fit the COP total");
         account.requireCompatible(ownerId, amount);
         merchant = DomainChecks.optionalText(merchant, "merchant", 200);
         description = DomainChecks.optionalText(description, "description", 500);
@@ -64,11 +67,30 @@ public record Transaction(UUID id, OwnerId ownerId, Account account, Account cou
         }
     }
 
+    public Transaction(UUID id, OwnerId ownerId, Account account, Account counterpartyAccount,
+                       Category category, RecurringCharge recurringCharge, TransactionKind kind,
+                       TransactionStatus status, Money amount, Instant occurredAt, String merchant,
+                       String description, String bankProvider, String bankEventId,
+                       LocalDate recurringDueOn, Integer installmentNumber) {
+        this(id,ownerId,account,counterpartyAccount,category,recurringCharge,kind,status,amount,occurredAt,
+                merchant,description,bankProvider,bankEventId,recurringDueOn,installmentNumber,TransactionMetadata.EMPTY);
+    }
+
+    /** Import an explicit cancelled observation without pretending that it settled. */
+    public void requireIngestible() {
+        if (status == TransactionStatus.PENDING) throw new IllegalStateException("Ingestion needs an explicit final state");
+        requireActiveResources();
+    }
+
     /** Command validation; call before inserting a newly registered transaction. */
     public void requireRegistrable() {
         if (status == TransactionStatus.VOIDED) {
             throw new IllegalStateException("Cannot register an already voided transaction");
         }
+        requireActiveResources();
+    }
+
+    private void requireActiveResources() {
         account.requireActive();
         if (counterpartyAccount != null) {
             counterpartyAccount.requireActive();
@@ -100,6 +122,6 @@ public record Transaction(UUID id, OwnerId ownerId, Account account, Account cou
     private Transaction withStatus(TransactionStatus nextStatus) {
         return new Transaction(id, ownerId, account, counterpartyAccount, category, recurringCharge,
                 kind, nextStatus, amount, occurredAt, merchant, description,
-                bankProvider, bankEventId, recurringDueOn, installmentNumber);
+                bankProvider, bankEventId, recurringDueOn, installmentNumber, metadata);
     }
 }

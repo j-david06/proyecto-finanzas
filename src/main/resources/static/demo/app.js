@@ -1,4 +1,4 @@
-import {createAttempt,formatAmount,parseCredentials,validateConnection,validReceipt,stateLabel,pendingState,stateClass,errorMessage} from './model.mjs';
+import {createAttempt,createRawAttempt,formatAmount,parseCredentials,validateConnection,validReceipt,stateLabel,pendingState,stateClass,errorMessage} from './model.mjs';
 
 const $ = id => document.getElementById(id);
 const state = {connection:null,attempt:null,busy:false,unknown:false,kind:'EXPENSE',rows:[],accepted:0,lastReceipt:null,controller:null};
@@ -53,7 +53,8 @@ function showReceipt(receipt) {
 }
 
 function processingMessage(receipt) {
-  if (receipt.status === 'PROCESSED') return 'Transacción registrada en PostgreSQL.';
+  if (receipt.status === 'PROCESSED') return receipt.transaction_status==='VOIDED'
+    ? 'Cancelación registrada · VOIDED. Sin gasto liquidado.' : 'Transacción registrada · POSTED.';
   if (receipt.status === 'REVIEW') return receipt.error_code === 'PARSER_UNAVAILABLE'
     ? 'Este mensaje necesita un parser; requiere revisión.' : 'Requiere revisión. No se registró una transacción nueva.';
   if (receipt.status === 'DEAD') return 'Se agotaron los intentos. Requiere intervención.';
@@ -69,6 +70,8 @@ function clearConnection() {
   $('api-key').value = '';
   $('account-id').value = '';
   $('credential-file').value = '';
+  $('raw-text').value = '';
+  $('destination-account').value = '';
   resetAttempt();
   renderActivity();
   message('connection-message','Conexión eliminada de esta pestaña.');
@@ -87,6 +90,7 @@ function useConnection(connection) {
   state.connection = connection;
   $('api-key').value = '';
   $('account-id').value = connection.accountId;
+  $('destination-account').value = connection.destinationAccountId || '';
   message('connection-message','Configuración lista. La API verificará tus permisos al enviar.','success');
   $('connection-details').open = false;
   updateControls();
@@ -166,11 +170,11 @@ async function submitAttempt() {
     state.unknown = false;
     state.lastReceipt = result.data.ingestion_id;
     const existing = state.rows.find(row=>row.id === result.data.ingestion_id);
-    if (existing) Object.assign(existing,{status:result.data.status,transaction_id:result.data.transaction_id,error_code:result.data.error_code});
+    if (existing) Object.assign(existing,{status:result.data.status,transaction_id:result.data.transaction_id,error_code:result.data.error_code,transaction_status:result.data.transaction_status});
     else {
       state.accepted += 1;
       state.rows.unshift({...state.attempt,id:result.data.ingestion_id,status:result.data.status,
-        transaction_id:result.data.transaction_id,error_code:result.data.error_code});
+        transaction_id:result.data.transaction_id,error_code:result.data.error_code,transaction_status:result.data.transaction_status});
       state.rows = state.rows.slice(0,20);
     }
     $('http-status').className = 'http-status good';
@@ -199,8 +203,9 @@ $('movement-form').addEventListener('submit',async event=>{
   }
   try {
     if (!window.isSecureContext || !crypto.randomUUID) throw new Error('Abre el panel en localhost o mediante HTTPS.');
-    state.attempt = createAttempt({kind:state.kind,amount:$('amount').value,merchant:$('merchant').value,date:$('occurred-at').value,trigger:$('trigger').value},
-      state.connection.accountId,crypto.randomUUID());
+    state.attempt = $('input-format').value==='RAW_MESSAGE'
+      ? createRawAttempt({text:$('raw-text').value,trigger:$('raw-trigger').value,destination:$('raw-trigger').value==='EMAIL'?$('destination-account').value:'',date:nowInBogota()},state.connection.accountId,crypto.randomUUID())
+      : createAttempt({kind:state.kind,amount:$('amount').value,merchant:$('merchant').value,date:$('occurred-at').value,trigger:$('trigger').value},state.connection.accountId,crypto.randomUUID());
     await submitAttempt();
   } catch (error) { message('form-message',error.message,'error'); }
 });
@@ -212,6 +217,7 @@ $('new-event').addEventListener('click',()=>{
   resetAttempt();
   $('amount').value = '';
   $('merchant').value = '';
+  $('raw-text').value = '';
   $('occurred-at').value = nowInBogota();
   $('amount').focus();
 });
@@ -225,7 +231,7 @@ async function poll(row, button, feedback) {
     const result = await request(`/api/v1/ingestions/${row.id}`);
     if (!result.ok) throw new Error(errorMessage(result.status,result.data?.code));
     if (!validReceipt(result.data) || result.data.ingestion_id !== row.id) throw new Error('La respuesta de estado no pudo validarse.');
-    Object.assign(row,{status:result.data.status,transaction_id:result.data.transaction_id,error_code:result.data.error_code});
+    Object.assign(row,{status:result.data.status,transaction_id:result.data.transaction_id,error_code:result.data.error_code,transaction_status:result.data.transaction_status});
     if (state.lastReceipt === row.id) showReceipt(result.data);
     renderActivity();
   } catch (error) {
@@ -242,13 +248,13 @@ function renderActivity() {
   for (const row of state.rows) {
     const item = $('event-template').content.cloneNode(true);
     const icon = item.querySelector('.event-icon');
-    icon.textContent = row.kind === 'INCOME' ? '↙' : '↗';
+    icon.textContent = row.kind === null ? '≡' : row.kind === 'INCOME' ? '↙' : '↗';
     icon.classList.toggle('income',row.kind === 'INCOME');
     item.querySelector('.event-merchant').textContent = row.merchant;
     const [date,time] = row.date.split('T');
     const [year,month,day] = date.split('-');
     item.querySelector('.event-time').textContent = `${day}/${month}/${year} · ${time} · Bogotá`;
-    item.querySelector('.event-amount').textContent = `${row.kind === 'INCOME' ? '+' : '−'} ${formatAmount(row.amount)}`;
+    item.querySelector('.event-amount').textContent = row.amount===null ? 'Texto Nu' : `${row.kind === 'INCOME' ? '+' : '−'} ${formatAmount(row.amount)}`;
     const badge = item.querySelector('.state-badge');
     badge.textContent = stateLabel(row.status);
     badge.className = `state-badge ${stateClass(row.status)}`;
@@ -264,6 +270,15 @@ function renderActivity() {
 }
 
 $('server-address').textContent = window.location.origin;
+function updateInputMode() {
+  const raw=$('input-format').value==='RAW_MESSAGE';
+  $('normalized-fields').hidden=raw; $('raw-fields').hidden=!raw;
+  $('normalized-fields').querySelectorAll('input,select,button').forEach(input=>{input.disabled=raw;});
+  $('raw-fields').querySelectorAll('input,select,textarea').forEach(input=>{input.disabled=!raw;});
+  $('raw-text').required=raw;
+}
+$('input-format').addEventListener('change',updateInputMode);
+updateInputMode();
 $('occurred-at').value = nowInBogota();
 window.addEventListener('pagehide',clearConnection);
 updateControls();

@@ -59,6 +59,7 @@ public class DemoSeedConfiguration {
                 if (matches == null || matches != 1) {
                     throw new IllegalStateException("Demo credentials do not match finanzas_demo; review .env.demo-panel before restarting");
                 }
+                demoCard(jdbc,manager,credentials,connection,account,properties.getProperty("INGESTION_DESTINATION_ACCOUNT_ID"));
                 return;
             }
             UUID owner = UUID.randomUUID(), account = UUID.randomUUID(), connection = UUID.randomUUID();
@@ -80,6 +81,26 @@ public class DemoSeedConfiguration {
                     throw new IllegalStateException("Cannot save local demo credentials", exception);
                 }
             });
+            demoCard(jdbc,manager,credentials,connection,account,null);
         };
+    }
+
+    private static void demoCard(JdbcTemplate jdbc,PlatformTransactionManager manager,Path credentials,
+                                 UUID connection,UUID account,String savedDestination) {
+        UUID card=UUID.nameUUIDFromBytes(("demo-card:"+connection).getBytes(StandardCharsets.UTF_8));
+        if(savedDestination!=null && !savedDestination.equals(card.toString())) throw new IllegalStateException("Demo destination mapping mismatch");
+        new TransactionTemplate(manager).executeWithoutResult(status->{
+            UUID owner=jdbc.queryForObject("SELECT owner_id FROM source_connections WHERE id=? FOR UPDATE",UUID.class,connection);
+            if(jdbc.update("UPDATE accounts SET bank_reference='ABC123' WHERE id=? AND owner_id=? AND (bank_reference IS NULL OR bank_reference='ABC123')",account,owner)!=1)
+                throw new IllegalStateException("Demo origin mapping mismatch");
+            jdbc.update("INSERT INTO accounts(id,owner_id,name,kind,card_last4) VALUES (?,?,'Tarjeta demo Nu','CREDIT_CARD','9876') ON CONFLICT(id) DO NOTHING",card,owner);
+            Integer count=jdbc.queryForObject("SELECT count(*) FROM accounts WHERE id=? AND owner_id=? AND kind='CREDIT_CARD' AND card_last4='9876' AND currency='COP' AND active",Integer.class,card,owner);
+            if(count==null || count!=1)throw new IllegalStateException("Demo card mapping mismatch");
+            jdbc.update("UPDATE source_connections SET allowed_account_ids=array_append(allowed_account_ids,?) WHERE id=? AND NOT allowed_account_ids @> ARRAY[?]::uuid[]",card,connection,card);
+        });
+        if(savedDestination==null) {
+            try { Files.writeString(credentials,"\nINGESTION_DESTINATION_ACCOUNT_ID="+card+"\n",StandardCharsets.UTF_8,StandardOpenOption.APPEND); }
+            catch(java.io.IOException exception) { throw new IllegalStateException("Cannot save demo destination",exception); }
+        }
     }
 }

@@ -1,0 +1,12 @@
+Asunto: ¡Recibimos tu pago! Ya puedes estar relax.
+Hola, Usuario:
+Recibimos el pago que hiciste de tu Tarjeta de crédito Nu.
+Estos son los detalles de lo que pagaste:
+Tu pago fue de: $150.000,00
+Lo has realizado el: 12 noviembre 2026 10:31:38 PM
+Tipo de transacción: Pago en línea
+Costo de transacción: $0
+Producto origen: ABC123
+Producto destino: **** **** **** 9876
+ID transacción: 00000000-0000-0000-0000-000000000001
+Tu próxima fecha de corte es: 14 noviembre 2026

@@ -32,10 +32,17 @@ public final class ProcessIngestionService implements ProcessIngestionUseCase {
             }
             var movement = parser.parse(plaintext);
             var account = repository.account(work, movement.accountId());
-            var transaction = new Transaction(work.id(), work.owner(), account, null, null, null,
-                    movement.kind(), TransactionStatus.POSTED, movement.amount(), movement.occurredAt().truncatedTo(java.time.temporal.ChronoUnit.MICROS),
-                    movement.merchant(), null, movement.bankProvider(), movement.bankEventId(), null, null);
-            transaction.requireRegistrable();
+            var destination = movement.destinationAccountId() == null ? null : repository.account(work, movement.destinationAccountId());
+            if (movement.kind() == co.finanzas.domain.transaction.TransactionKind.TRANSFER
+                    && (account.kind() != co.finanzas.domain.account.Account.Kind.DEPOSIT || destination == null
+                    || destination.kind() != co.finanzas.domain.account.Account.Kind.CREDIT_CARD
+                    || !java.util.Objects.equals(account.bankReference(), movement.metadata().originProduct())
+                    || account.bankReference() == null || !java.util.Objects.equals(destination.cardLast4(), movement.metadata().cardLast4())
+                    || destination.cardLast4() == null)) throw new ProcessingFailure(ACCOUNT_MAPPING_REQUIRED, false);
+            var transaction = new Transaction(work.id(), work.owner(), account, destination, null, null,
+                    movement.kind(), movement.status(), movement.amount(), movement.occurredAt().truncatedTo(java.time.temporal.ChronoUnit.MICROS),
+                    movement.merchant(), null, movement.bankProvider(), movement.bankEventId(), null, null, movement.metadata());
+            transaction.requireIngestible();
             repository.complete(work, transaction, movement.parserVersion());
         } catch (ProcessingFailure failure) {
             repository.fail(work, failure);

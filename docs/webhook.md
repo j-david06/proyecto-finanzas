@@ -123,12 +123,14 @@ Con un worker activo, los eventos NORMALIZED generan transacciones POSTED. Consu
 ## Contrato y errores
 
 - `schema_version`: entero JSON `1`; sin coerción de decimales o cadenas.
-- `trigger`: `APPLE_PAY`, `SMS`, `EMAIL`.
+- `trigger`: `APPLE_PAY`, `SMS`, `EMAIL`, `APP_DETAIL` (texto/OCR de detalle Nu).
 - `NORMALIZED`: movimiento obligatorio, sin `message`; ingresos/gastos. Transferencias se rechazan en esta fase.
 - `amount`: cadena decimal positiva, máximo 16 enteros y 2 decimales; sin separadores ni notación científica.
 - `currency`: código ISO admitido por Java, predeterminado COP; debe coincidir con la cuenta.
 - `occurred_at`: fecha ISO con offset. Referencia bancaria solo si existe; no inventarla.
-- `RAW_MESSAGE`: `message.text` y `message.received_at` con offset; solo SMS/correo. Sin movimiento normalizado.
+- `RAW_MESSAGE`: `message.text` y `message.received_at` con offset; SMS/correo/APP_DETAIL. Sin movimiento normalizado.
+  Las [plantillas Nu](nu-parser.md) usan la fecha del movimiento, no la de recepción. EMAIL de pago
+  necesita `destination_account_id` explícito y mapeos autorizados para registrar TRANSFER.
 - Sin propiedades desconocidas, claves JSON repetidas, contenido comprimido ni cuerpos mayores de 64 KiB.
 - `Idempotency-Key`: UUID canónico en minúsculas, una cabecera. Hash calculado sobre bytes originales;
   reordenar campos/espacios cuenta como otro contenido para la misma clave.
@@ -139,7 +141,7 @@ Con un worker activo, los eventos NORMALIZED generan transacciones POSTED. Consu
 - `503`: almacenamiento no disponible. Reintentar con la misma clave y cuerpo, backoff y jitter.
 
 `HMAC_REQUIRED` se rechaza sin degradación; no hay almacén de nonces. La clave autentica el
-dispositivo, no demuestra liquidación bancaria. Deduplicación bancaria estable disponible; parsers Nu pendientes.
+dispositivo, no demuestra liquidación bancaria. Deduplicación bancaria estable y plantillas Nu verificadas disponibles.
 
 ## Cifrado y persistencia
 
@@ -149,4 +151,4 @@ con tag de 128 bits. AAD UTF-8: `owner_id:source_connection_id:idempotency_key`.
 
 La admisión revalida credencial, cuenta y lista bajo bloqueos compartidos hasta el commit.
 La unicidad SQL y `ON CONFLICT` resuelven concurrencia; no hay cola en memoria ni confirmación
-antes de persistir. No se cambia `V1__init_schema.sql` ni se altera el esquema instalado.
+antes de persistir. V1 permanece intacta; Flyway V2 amplía el esquema con metadatos Nu.

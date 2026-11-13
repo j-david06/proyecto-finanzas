@@ -38,7 +38,8 @@ de reconstruir el JAR en Windows. No combinar `api,worker`; usar procesos separa
   Agotamiento, incluidos crashes repetidos, termina en `DEAD`.
 - Payload inválido/alterado o permisos retirados terminan en `REVIEW`, sin registrar movimientos.
   Los errores persistidos son códigos estáticos, sin texto de mensajes o excepciones.
-- `RAW_MESSAGE` termina en `REVIEW / PARSER_UNAVAILABLE`. Parser Nu y correo quedan pendientes.
+- `RAW_MESSAGE` admite [plantillas Nu Colombia](nu-parser.md) verificadas para APP_DETAIL y
+  pagos de tarjeta por EMAIL. Los demás formatos terminan en `REVIEW / PARSER_UNAVAILABLE`.
 - Mismo propietario/cuenta/proveedor/ID bancario reutiliza el movimiento existente solo si coincide
   tipo, estado, importe, moneda, instante y comercio. Diferencias: `BANK_EVENT_CONFLICT` para revisión.
   Sin referencia bancaria estable, eventos con distintas claves se consideran distintos; nunca se
@@ -46,8 +47,7 @@ de reconstruir el JAR en Windows. No combinar `api,worker`; usar procesos separa
 - Instantes normalizados a microsegundos antes de persistir, según precisión de PostgreSQL.
 - Una clave no disponible aplica `RETRY`, luego `DEAD` si no se restaura a tiempo. Solo se carga
   una clave; rotación con llavero y recuperación manual de `REVIEW/DEAD` aún pendientes.
-- No calcula saldos ni categoriza. No altera V1: las columnas, índices y FK existentes ya soportan
-  leases, resultados y unicidad bancaria.
+- No calcula saldos ni categoriza. V1 permanece intacta; V2 añade metadatos Nu y mapeos de cuentas.
 
 ## Configuración
 

@@ -42,6 +42,8 @@ solo la API Key necesaria y el evento o ID solicitado.
   Si se quiere descartar un intento incierto, la interfaz advierte del riesgo de duplicarlo.
 - La demo procesa movimientos normalizados en `transactions`. `Procesado` confirma el registro
   interno; aún sin cálculo de saldos. Ver [worker](processing-worker.md).
+- El modo **Texto Nu / OCR** permite pegar [las plantillas Nu](nu-parser.md). Muestra `VOIDED`
+  para cancelaciones y configura un destino demo para pagos de tarjeta por correo.
 
 ## Arranque y aislamiento
 

@@ -2,7 +2,7 @@ package co.finanzas.bootstrap;
 
 import co.finanzas.adapters.in.worker.IngestionProcessingJob;
 import co.finanzas.adapters.shared.ingestion.IngestionRequestDecoder;
-import co.finanzas.adapters.out.parser.NormalizedMovementParser;
+import co.finanzas.adapters.out.parser.IngestionMovementParser;
 import co.finanzas.adapters.out.persistence.postgres.PostgresProcessingRepository;
 import co.finanzas.application.ingestion.port.out.DigestPort;
 import co.finanzas.application.processing.port.in.ProcessIngestionUseCase;
@@ -29,7 +29,7 @@ public class ProcessingConfiguration {
         tx.setTimeout(10);
         return new PostgresProcessingRepository(jdbc, tx, attempts, lease, retry);
     }
-    @Bean MovementParserPort movementParser(IngestionRequestDecoder decoder) { return new NormalizedMovementParser(decoder); }
+    @Bean MovementParserPort movementParser(IngestionRequestDecoder decoder) { return new IngestionMovementParser(decoder); }
     @Bean ProcessIngestionUseCase processIngestion(ProcessingRepository repository, PayloadDecryptionPort cipher,
                                                    MovementParserPort parser, DigestPort digests) {
         return new ProcessIngestionService(repository, cipher, parser, digests);

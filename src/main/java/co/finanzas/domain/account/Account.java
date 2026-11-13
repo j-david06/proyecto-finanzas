@@ -9,7 +9,7 @@ import java.util.Objects;
 import java.util.UUID;
 
 public record Account(UUID id, OwnerId ownerId, String name, Kind kind,
-                      Currency currency, boolean active) {
+                      Currency currency, boolean active, String bankReference, String cardLast4) {
     public enum Kind { CASH, DEPOSIT, CREDIT_CARD }
 
     public Account {
@@ -18,6 +18,13 @@ public record Account(UUID id, OwnerId ownerId, String name, Kind kind,
         name = DomainChecks.requiredText(name, "name", 120);
         Objects.requireNonNull(kind, "kind");
         Objects.requireNonNull(currency, "currency");
+        bankReference = DomainChecks.optionalText(bankReference, "bankReference", 120);
+        if (cardLast4 != null && !cardLast4.matches("[0-9]{4}")) throw new IllegalArgumentException("Invalid card last four digits");
+        if (cardLast4 != null && kind != Kind.CREDIT_CARD) throw new IllegalArgumentException("Card mapping requires a credit card account");
+    }
+
+    public Account(UUID id, OwnerId ownerId, String name, Kind kind, Currency currency, boolean active) {
+        this(id, ownerId, name, kind, currency, active, null, null);
     }
 
     public Account(UUID id, OwnerId ownerId, String name, Kind kind) {
@@ -38,6 +45,6 @@ public record Account(UUID id, OwnerId ownerId, String name, Kind kind,
     }
 
     public Account deactivate() {
-        return new Account(id, ownerId, name, kind, currency, false);
+        return new Account(id, ownerId, name, kind, currency, false, bankReference, cardLast4);
     }
 }

@@ -6,6 +6,24 @@ import java.util.regex.Pattern;
 
 /** Explicit COP amounts only. Reject signs, prose, ambiguous separators and partial matches. */
 public final class ColombianPesoParser {
+    private static final Pattern NU_NUMBER = Pattern.compile("(?:0|[1-9][0-9]*|[1-9][0-9]{0,2}(?:\\.[0-9]{3})+)(?:,[0-9]{2})?");
+
+    /** The verified Nu Colombia template establishes COP even when its label is only '$'. */
+    public Money parseNu(String value) { return new Money(parseNuNonNegative(value)); }
+
+    public BigDecimal parseNuNonNegative(String value) {
+        if (value == null || value.length() > 64 || !value.startsWith("$")) throw new IllegalArgumentException("Invalid Nu COP amount");
+        String number = value.substring(1).strip();
+        if (!NU_NUMBER.matcher(number).matches()) throw new IllegalArgumentException("Invalid Nu Colombian separators");
+        BigDecimal amount = new BigDecimal(number.replace(".", "").replace(',', '.')).setScale(2);
+        if (amount.compareTo(Money.MAX_AMOUNT) > 0) throw new IllegalArgumentException("Amount exceeds storage limits");
+        return amount;
+    }
+
+    public Money parseNuUsd(String value) {
+        if (value == null || !value.startsWith("US$ ")) throw new IllegalArgumentException("Invalid USD label");
+        return new Money(parseNuNonNegative("$" + value.substring(4)), java.util.Currency.getInstance("USD"));
+    }
     private static final Pattern LOCAL_GROUPED = Pattern.compile("[1-9][0-9]{0,2}(?:\\.[0-9]{3})+(?:,[0-9]{2})?");
     private static final Pattern INTERNATIONAL_GROUPED = Pattern.compile("[1-9][0-9]{0,2}(?:,[0-9]{3})+(?:\\.[0-9]{2})?");
     private static final Pattern UNGROUPED = Pattern.compile("(?:0|[1-9][0-9]*)(?:[.,][0-9]{2})?");
